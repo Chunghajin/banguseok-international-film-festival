@@ -1,0 +1,5 @@
+export default function ResultOrnament({kind='laurel'}:{kind?:'laurel'|'trophy'}){
+ return <svg className={`result-ornament ${kind}`} viewBox="0 0 160 120" fill="none" aria-hidden="true" focusable="false">
+  {kind==='trophy'?<g stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M50 20 110 19 104 59Q99 79 80 82Q58 78 54 58Z M79 83 80 101 M60 105 100 103 M51 29Q25 24 34 48Q40 62 57 63 M108 29Q134 24 126 48Q120 61 104 63"/><path opacity=".5" strokeWidth="1.5" d="M48 18 112 20 107 60 M61 108 99 106"/><path d="m80 35 3 9 10 1-8 6 3 9-8-6-8 6 3-9-8-6 10-1Z"/></g>:<g stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M72 107Q21 95 29 29 M88 107Q139 95 131 29"/>{[0,1,2,3,4].map(i=><g key={i} transform={`translate(0 ${i*14})`}><path d={`M${28+i*2} ${30-i*2}q-17-2-14-17q14 2 14 17 M${28+i*2} ${34-i*2}q14-3 17-16q-16 0-17 16`}/><path d={`M${132-i*2} ${30-i*2}q17-2 14-17q-14 2-14 17 M${132-i*2} ${34-i*2}q-14-3-17-16q16 0 17 16`}/></g>)}<path opacity=".45" strokeWidth="1.5" d="M69 110Q18 96 27 28 M91 110Q142 96 133 28"/></g>}
+ </svg>;
+}
