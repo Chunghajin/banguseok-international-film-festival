@@ -3,24 +3,26 @@ import Link from 'next/link';
 import {useEffect,useRef,useState} from 'react';
 import {useRouter} from 'next/navigation';
 import {CATEGORIES,type CategoryId} from '@/lib/award-catalog';
-import {confirmSelection,countSelected,nominate,skipCategory,type Selection} from '@/lib/award-state';
+import {confirmSelection,countSelected,nominate,skipCategory,selection,candidateOrder,type Selection} from '@/lib/award-state';
 import {currentDraft,saveDraft,useSurveyDraft} from '@/lib/survey-store';
 import type {SurveyDraft} from '@/lib/survey-draft';
 import type {Movie} from '@/lib/tmdb';
+import {CANDIDATE_MOVIES} from '@/lib/rolling-candidates';
 import MoviePoster from '@/components/movie-poster';
 import Crayon from '@/components/crayon';
 import MovieSearch,{movieRequest} from '@/components/movie-search';
+const hydratedCategories=new Map<CategoryId,Movie[]>();
 export default function AwardPicker({id}:{id:CategoryId}){
  const state=useSurveyDraft(),draft=state.draft,router=useRouter();
  const category=CATEGORIES.find(c=>c.id===id)!,categoryIndex=CATEGORIES.findIndex(c=>c.id===id);
- const page=draft?.candidate_page[id]??0;
- const order=draft?.candidate_order[id],ids=order?.slice(page*6,page*6+6),idsKey=ids?.join(',')??'';
+ const ids=draft?.candidate_order[id];
  const [loaded,setLoaded]=useState<{key:string;items:Movie[]}>({key:'',items:[]});
- const [failure,setFailure]=useState(''),[retry,setRetry]=useState(0),[searching,setSearching]=useState(false),[choosing,setChoosing]=useState(false),[choiceError,setChoiceError]=useState(''),[confirmSkip,setConfirmSkip]=useState(false);
+ const [failure,setFailure]=useState({key:'',message:''}),[retry,setRetry]=useState(0),[searching,setSearching]=useState(false),[choosing,setChoosing]=useState(false),[choiceError,setChoiceError]=useState(''),[confirmSkip,setConfirmSkip]=useState(false);
  const choiceRequest=useRef(0),chooseAbort=useRef<AbortController|null>(null),heading=useRef<HTMLHeadingElement>(null),searchButton=useRef<HTMLButtonElement>(null),skipButton=useRef<HTMLButtonElement>(null),cancelSkip=useRef<HTMLButtonElement>(null);
  const pending=draft?.pending_selection[id],selected=draft?.selections[id],count=draft?countSelected(draft):0;
- const visible=loaded.key===idsKey?loaded.items:[];
- const loading=Boolean(idsKey)&&loaded.key!==idsKey&&!failure;
+ const loadKey=id+':'+retry;
+ const visible=CANDIDATE_MOVIES.map(m=>loaded.items.find(latest=>latest.tmdb_id===m.tmdb_id)??m);
+ const loading=state.ready&&Boolean(draft)&&loaded.key!==loadKey&&failure.key!==loadKey;
  useEffect(()=>{heading.current?.focus();window.scrollTo(0,0);},[id]);
  useEffect(()=>{
   const latest=currentDraft();
@@ -30,18 +32,28 @@ export default function AwardPicker({id}:{id:CategoryId}){
  useEffect(()=>{if(confirmSkip)cancelSkip.current?.focus();},[confirmSkip]);
  useEffect(()=>()=>{chooseAbort.current?.abort();choiceRequest.current++;},[]);
  useEffect(()=>{
-  if(!idsKey)return;
-  const controller=new AbortController();
-  movieRequest({action:'candidates',ids:idsKey.split(',').map(Number)},controller.signal).then(data=>{
-   if(!controller.signal.aborted)setLoaded({key:idsKey,items:data.items});
-  }).catch(e=>{if(!controller.signal.aborted)setFailure(e instanceof Error?e.message:'후보 정보를 불러오지 못했어요.');});
+  const latest=currentDraft();if(!state.ready||!latest)return;
+  const controller=new AbortController(),requested=latest.candidate_order[id],key=id+':'+retry;
+  // Reuse successful category hydration in this tab; rolling itself never requests TMDB.
+  const cached=retry===0?hydratedCategories.get(id):undefined;
+  const request=cached?Promise.resolve({items:cached}):movieRequest({action:'candidates',ids:requested},controller.signal);
+  request.then(data=>{
+   if(controller.signal.aborted)return;
+   const items:Movie[]=Array.isArray(data.items)?data.items.flatMap((raw:Movie)=>{
+    const valid=selection(id,{...raw,category_id:id});
+    return valid&&(cached||requested.includes(valid.tmdb_id))?[{...valid,poster_url:null}]:[];
+   }):[];
+   setLoaded({key,items});
+   if(items.length===6){hydratedCategories.set(id,items);setFailure({key:'',message:''});}
+   else setFailure({key,message:'최신 영화 정보를 확인하지 못했어요. 확인된 후보로 계속 고를 수 있어요.'});
+  }).catch(()=>{if(!controller.signal.aborted)setFailure({key,message:'최신 영화 정보를 확인하지 못했어요. 확인된 후보로 계속 고를 수 있어요.'});});
   return()=>controller.abort();
- },[idsKey,retry]);
+ },[id,retry,state.ready]);
  function persist(next:SurveyDraft,category:CategoryId=id){saveDraft({...next,current_screen:'category',current_category:category,updated_at:new Date().toISOString()});}
- async function choose(movie:Movie){
+ async function choose(movie:Movie,verifiedCandidate=false){
   if(!draft)return;chooseAbort.current?.abort();const controller=new AbortController();chooseAbort.current=controller;
   const request=++choiceRequest.current;setChoosing(true);setChoiceError('');
-  try{const verified=await movieRequest({action:'detail',id:movie.tmdb_id},controller.signal);
+  try{const verified=verifiedCandidate?movie:await movieRequest({action:'detail',id:movie.tmdb_id},controller.signal);
    if(request===choiceRequest.current&&!controller.signal.aborted){
     // Read the latest draft: navigation/page changes during the request must not be overwritten.
     const next={...verified,category_id:id} as Selection;
@@ -53,7 +65,7 @@ export default function AwardPicker({id}:{id:CategoryId}){
  function leave(){chooseAbort.current?.abort();choiceRequest.current++;if(draft)saveDraft({...draft,current_screen:'awards',pending_selection:{...draft.pending_selection,[id]:null},updated_at:new Date().toISOString()});router.push('/create/awards');}
  function skip(){if(!draft)return;chooseAbort.current?.abort();choiceRequest.current++;const next=skipCategory(draft,id);saveDraft({...next,current_screen:'awards',updated_at:new Date().toISOString()});router.push('/create/awards');}
  function confirm(){if(!draft||!pending||choosing)return;const result=confirmSelection(draft,id);saveDraft({...result.state,current_screen:result.next?'category':'awards',current_category:result.next??id,updated_at:new Date().toISOString()});router.push(result.next?`/create/awards/${result.next}`:'/create/awards');}
- function switchPage(){if(!draft)return;setFailure('');persist({...draft,candidate_page:{...draft.candidate_page,[id]:page===0?1:0}});}
+ function refreshCandidates(){const latest=currentDraft();if(!latest)return;persist({...latest,candidate_order:{...latest.candidate_order,[id]:candidateOrder(id,Math.random,latest.survey,latest.candidate_order[id])}});}
  function closeSearch(){setSearching(false);requestAnimationFrame(()=>searchButton.current?.focus());}
  const searchToggle=<button key="search-toggle" className="search-toggle text-action" ref={searchButton} aria-expanded={searching} aria-label={searching?'검색 닫기':'영화 제목으로 직접 검색'} onClick={()=>searching?closeSearch():setSearching(true)}>{searching?'검색 닫기':'직접 검색 ↗'}</button>;
  return <main id="main-content" className="award-picker" data-searching={searching}>
@@ -66,22 +78,22 @@ export default function AwardPicker({id}:{id:CategoryId}){
    {selected&&<p className="current-winner">현재 수상작: {selected.title} ({selected.release_year??'연도 미상'})</p>}
    <div className="movie-exploration">
    {searching&&searchToggle}
-   {searching?<MovieSearch key={id} onChoose={choose} pendingId={pending?.tmdb_id}/>:<section aria-label="추천 영화 후보">
-    <div className="candidate-toolbar"><p className="survey-hint" role="status">{loading?'영화 정보를 불러오는 중…':`후보 ${page+1}/2 · 전체 12편`}</p>{searchToggle}</div>
-    {failure&&<div role="alert" className="form-error">{failure}<button className="text-action" onClick={()=>{setFailure('');setRetry(v=>v+1);}}>다시 시도</button></div>}
+   {searching?<MovieSearch key={id} onChoose={movie=>choose(movie)} pendingId={pending?.tmdb_id}/>:<section aria-label="추천 영화 후보">
+    <div className="candidate-toolbar"><p className="survey-hint" role="status">{loading?'최신 영화 정보를 확인하는 중…':'추천 후보 6편 · 더 둘러볼 수 있어요'}</p>{searchToggle}</div>
+    {failure.key===loadKey&&<div role="alert" className="form-error">{failure.message}<button className="text-action" onClick={()=>setRetry(v=>v+1)}>최신 정보 다시 확인</button></div>}
     <div className="poster-grid">{ids?.map(movieId=>{
-     const expected=category.groups.flat().find(m=>m.id===movieId)!;
+     const expected=CANDIDATE_MOVIES.find(m=>m.tmdb_id===movieId)!;
      const movie=visible.find(m=>m.tmdb_id===movieId);
      const valid=movie&&typeof movie.title==='string';
      const checked=(pending??selected)?.tmdb_id===movieId;
-     return <button className="poster-card" key={movieId} type="button" disabled={!valid} aria-pressed={checked} aria-label={`${valid?movie.title:expected.label} · ${valid?movie.release_year??'연도 미상':expected.year}${!valid?' · 정보 확인 중 또는 정보 없음':''}`} onClick={()=>{if(valid)void choose(movie);}}>
-      <MoviePoster key={movie?.poster_path??'none'} path={valid?movie.poster_path:null} title={valid?movie.title:expected.label}/>
-      <span className="poster-title">{valid?movie.title:expected.label}</span><span className="poster-year">{valid?movie.release_year??'연도 미상':expected.year}</span>
+     return <button className="poster-card" key={movieId} type="button" disabled={!valid} aria-pressed={checked} aria-label={`${valid?movie.title:expected.title} · ${valid?movie.release_year??'연도 미상':expected.release_year}${!valid?' · 정보 확인 중 또는 정보 없음':''}`} onClick={()=>{if(valid)void choose(movie,true);}}>
+      <MoviePoster key={movie?.poster_path??'none'} path={valid?movie.poster_path:null} title={valid?movie.title:expected.title}/>
+      <span className="poster-title">{valid?movie.title:expected.title}</span><span className="poster-year">{valid?movie.release_year??'연도 미상':expected.release_year}</span>
       {checked&&<span className="poster-selected"><Crayon mark="check"/>{pending?.tmdb_id===movieId?'선정 대기':'수상작'}</span>}{!valid&&<span className="poster-year">{loading?'로딩 중':'정보 없음'}</span>}
      </button>;
     })}</div>
-    <button className="text-action other-candidates" onClick={switchPage}>{page===0?'다른 후보 보기':'처음 후보 다시 보기'}</button>
-    <p className="survey-hint">후보는 기억을 돕는 예시입니다. 두 화면에 전체 12편이 있어요.</p>
+    <button className="text-action other-candidates" onClick={refreshCandidates}>다른 후보작 둘러보기 ↻</button>
+    <p className="survey-hint">후보는 기억을 돕는 예시입니다. 전에 본 후보가 다시 나올 수 있으며, 확정한 수상작은 유지돼요.</p>
    </section>}
    </div>
    {choiceError&&<p role="alert" className="form-error">{choiceError}</p>}

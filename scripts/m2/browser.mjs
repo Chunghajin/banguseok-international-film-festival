@@ -4,6 +4,7 @@ import {mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const uiPhase=process.env.UI_PHASE;
+const base=process.env.M2_BASE_URL??'http://127.0.0.1:3000';
 const artifactDir=process.env.M2_ARTIFACT_DIR||'artifacts/m2';
 await mkdir(artifactDir,{recursive:true});
 const metrics={};
@@ -36,7 +37,7 @@ try{
  const draft=()=>evaluate(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1'))`);
  async function screenshot(name){await evaluate(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);const {data}=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(`${artifactDir}/${name}.png`,Buffer.from(data,'base64'));}
  function pass(name){results.push({name,result:'PASS'});console.log(`PASS: ${name}`);}
- await cdp('Page.navigate',{url:'http://127.0.0.1:3000/'});
+ await cdp('Page.navigate',{url:base+'/'});
  if(uiPhase){await wait(`document.querySelector('.entry-actions button:not(:disabled)')`);await screenshot('landing-360');}
  await click('내 영화제 개최하기 ↗');
  if(uiPhase){
@@ -61,8 +62,8 @@ try{
  assert.ok((await text()).includes('3개 부문만 정하면'));pass('M1 survey to M2 list; six categories and minimum-three guidance');
  await evaluate(`document.querySelector('.category-list a').click()`);
  await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`,25000);
- const original=await draft(),firstIds=await evaluate(`Array.from(document.querySelectorAll('.poster-card')).map(e=>e.getAttribute('aria-label'))`);
- assert.equal(original.candidate_order.grand.length,12);await wait(`Array.from(document.querySelectorAll('.poster-card img')).slice(0,2).length===2&&Array.from(document.querySelectorAll('.poster-card img')).slice(0,2).every(i=>i.complete&&i.naturalWidth>0)`,15000);await screenshot('grand-candidates-360');
+ const original=await draft();
+ assert.equal(original.candidate_order.grand.length,6);await wait(`Array.from(document.querySelectorAll('.poster-card img')).slice(0,2).length===2&&Array.from(document.querySelectorAll('.poster-card img')).slice(0,2).every(i=>i.complete&&i.naturalWidth>0)`,15000);await screenshot('grand-candidates-360');
  if(uiPhase){
   metrics.picker=await evaluate(`({firstPosterTop:Math.round(document.querySelector('.poster-card .movie-poster').getBoundingClientRect().top+scrollY),posterWidth:document.querySelector('.movie-poster').getBoundingClientRect().width,searchTop:Math.round(document.querySelector('.search-toggle').getBoundingClientRect().top+scrollY),footerHeight:document.querySelector('.selection-bar').getBoundingClientRect().height,footerPosition:getComputedStyle(document.querySelector('.selection-bar')).position})`);
   if(uiPhase==='after'){
@@ -80,11 +81,9 @@ try{
  await evaluate(`document.querySelector('.poster-card img').dispatchEvent(new Event('error'))`);
  if(uiPhase==='after')assert.equal(await evaluate(`document.querySelector('.movie-poster').getBoundingClientRect().height`),posterHeightBefore);
  assert.ok(await evaluate(`document.querySelector('.poster-card').innerText.includes('포스터 없음')`));pass('360px candidate grid has no horizontal overflow; simulated image failure falls back to title');
- await click('다른 후보 보기');await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6 && document.body.innerText.includes('후보 2/2')`);
- const second=await draft();assert.equal(second.candidate_page.grand,1);assert.ok(second.candidate_order.grand.slice(0,6).every(id=>!second.candidate_order.grand.slice(6).includes(id)));
- await cdp('Page.reload');await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`);assert.deepEqual((await draft()).candidate_order,original.candidate_order);assert.equal((await draft()).candidate_page.grand,1);pass('Second page is disjoint and order/page survive reload');
- await click('처음 후보 다시 보기');await wait(`document.body.innerText.includes('후보 1/2')&&document.querySelectorAll('.poster-card:not(:disabled)').length===6`);
- assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.poster-card')).map(e=>e.getAttribute('aria-label'))`),firstIds);
+ await click('다른 후보작 둘러보기 ↻');
+ const second=await draft();assert.equal(second.candidate_order.grand.length,6);assert.ok(second.candidate_order.grand.some(id=>!original.candidate_order.grand.includes(id)));
+ await cdp('Page.reload');await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`);assert.deepEqual((await draft()).candidate_order,second.candidate_order);pass('New six-film batch survives reload');
  await evaluate(`document.querySelector('.poster-card').click()`);await wait(`document.querySelector('.selection-bar button:not(:disabled)')`);
  const pending=(await draft()).pending_selection.grand;assert.ok(pending);assert.equal((await draft()).selections.grand,null);
  await cdp('Page.reload');await wait(`document.querySelector('.selection-bar button:not(:disabled)')`);assert.equal((await draft()).pending_selection.grand.tmdb_id,pending.tmdb_id);pass('Card is pending until confirmation; pending survives reload');
@@ -140,7 +139,7 @@ try{
  interceptMode='error';await cdp('Fetch.enable',{patterns:[{urlPattern:'*/api/catalog/movies',requestStage:'Request'}]});
  await evaluate(`document.querySelector('#movie-query').focus()`);await cdp('Input.insertText',{text:'오프라인오류검사'});
  await wait(`document.querySelector('[role=alert]')?.innerText.includes('요청이 많아요')`);
- assert.deepEqual((await draft()).selections,preserved.selections);assert.deepEqual((await draft()).candidate_page,preserved.candidate_page);pass('Simulated 429 search error preserves confirmed winners and candidate page');
+ assert.deepEqual((await draft()).selections,preserved.selections);assert.deepEqual((await draft()).candidate_order,preserved.candidate_order);pass('Simulated 429 search error preserves confirmed winners and candidate batch');
  await screenshot('search-error-360');interceptMode='empty';await evaluate(`document.querySelector('#movie-query').select()`);await cdp('Input.insertText',{text:'오프라인빈검색검사'});
  await wait(`document.body.innerText.includes('검색 결과가 없어요.')`);pass('Simulated zero-result UI remains usable');
  interceptMode=null;await cdp('Fetch.disable');await click('검색 닫기');await click('← 목록으로');await wait(`location.pathname==='/create/awards'`);
@@ -148,7 +147,7 @@ try{
  if(uiPhase){
   await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});await cdp('Emulation.setTouchEmulationEnabled',{enabled:false});
   for(const [name,path,selector] of [['landing','/','.entry-actions button:not(:disabled)'],['survey','/create/survey','.survey-options'],['candidates','/create/awards/grand','.poster-card:not(:disabled)'],['review','/create/review','.review-list li']]){
-   await cdp('Page.navigate',{url:`http://127.0.0.1:3000${path}`});await wait(`document.querySelector(${JSON.stringify(selector)})`);
+   await cdp('Page.navigate',{url:base+path});await wait(`document.querySelector(${JSON.stringify(selector)})`);
    await evaluate(`window.scrollTo(0,0)`);
    assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth`));
    if(name==='candidates')await wait(`Array.from(document.querySelectorAll('.poster-card img')).slice(0,2).length===2&&Array.from(document.querySelectorAll('.poster-card img')).slice(0,2).every(i=>i.complete&&i.naturalWidth>0)`);

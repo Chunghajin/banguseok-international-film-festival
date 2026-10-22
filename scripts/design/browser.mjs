@@ -10,7 +10,7 @@ const profile=await mkdtemp(join(tmpdir(),'banguseok-design-'));
 const chrome=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--no-first-run','--no-default-browser-check',`--user-data-dir=${profile}`,'--remote-debugging-port=0','about:blank'],{stdio:['ignore','ignore','pipe']});let socket,inspect,productRequests=0;const checks=[],browserErrors=[];
 try{
  const endpoint=await new Promise((resolve,reject)=>{let buffer='';const timer=setTimeout(()=>reject(Error('CHROME_TIMEOUT')),15000);chrome.stderr.on('data',chunk=>{buffer+=chunk;const m=buffer.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(m){clearTimeout(timer);resolve(m[1]);}});chrome.once('error',reject);});
- socket=new WebSocket(endpoint);await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j;});let seq=0;const pending=new Map();socket.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Network.requestWillBeSent'&&m.params.request.url.includes('/api/catalog/movies'))productRequests++;if(m.method==='Runtime.exceptionThrown')browserErrors.push(m.params.exceptionDetails.exception?.description?.split('\n')[0]??'runtime error');if(m.method==='Network.loadingFailed')browserErrors.push(m.params.errorText);if(m.id){const p=pending.get(m.id);pending.delete(m.id);if(m.error)p?.reject(Error('CDP_FAILED'));else p?.resolve(m.result);}};
+ socket=new WebSocket(endpoint);await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j;});let seq=0;const pending=new Map();socket.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Fetch.requestPaused'){void send('Fetch.fulfillRequest',{requestId:m.params.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify({message:'후보 확인 테스트 오류'})).toString('base64')},m.sessionId);return;}if(m.method==='Network.requestWillBeSent'&&m.params.request.url.includes('/api/catalog/movies'))productRequests++;if(m.method==='Runtime.exceptionThrown')browserErrors.push(m.params.exceptionDetails.exception?.description?.split('\n')[0]??'runtime error');if(m.method==='Network.loadingFailed')browserErrors.push(m.params.errorText);if(m.id){const p=pending.get(m.id);pending.delete(m.id);if(m.error)p?.reject(Error('CDP_FAILED'));else p?.resolve(m.result);}};
  function send(method,params={},sessionId){return new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params,sessionId}));setTimeout(()=>{if(pending.has(id)){pending.delete(id);reject(Error('CDP_TIMEOUT'));}},20000).unref();});}
  const{targetId}=await send('Target.createTarget',{url:'about:blank'}),{sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});const cdp=(m,p={})=>send(m,p,sessionId);await cdp('Page.enable');await cdp('Runtime.enable');await cdp('Network.enable');
  async function js(expression){const r=await cdp('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});assert.ok(!r.exceptionDetails,'BROWSER_EVALUATION');return r.result.value;}
@@ -37,10 +37,12 @@ try{
   await wait(`location.pathname==='/create/awards'&&document.querySelector('.category-list')`);pass('six-question-real-navigation');
   if(stage==='selection'||stage==='result')for(const category of stage==='result'?['grand','lifetime','sorry']:['grand']){
    await go('/create/awards/'+category);await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`,35000);await wait(`[...document.querySelectorAll('.poster-card img')].slice(0,2).every(i=>i.complete&&i.naturalWidth>0)`);
-   if(category==='grand')for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);const top=await js(`document.querySelector('.poster-card .movie-poster').getBoundingClientRect().top`);if(width<700)assert.ok(top<310,'POSTERS_TOO_LOW');await shot(`selection-${width}`);await shot(`selection-${width}-full`,true);pass('live-candidates-responsive',{width,firstPosterTop:Math.round(top)});}
+   if(category==='grand')for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);const top=await js(`document.querySelector('.poster-card .movie-poster').getBoundingClientRect().top`);const fallback=await js(`Boolean(document.querySelector('.form-error'))`);if(width<700)assert.ok(top<(fallback?520:310),'POSTERS_TOO_LOW');await shot(`selection-${width}`);await shot(`selection-${width}-full`,true);pass('live-candidates-responsive',{width,firstPosterTop:Math.round(top),fallback});}
    if(stage==='selection'){
-    await viewport(360);const order=await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).candidate_order.grand`);
-    await click('.other-candidates');await wait(`document.body.innerText.includes('후보 2/2')&&document.querySelectorAll('.poster-card:not(:disabled)').length===6`);await cdp('Page.reload');await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`);assert.deepEqual(await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).candidate_order.grand`),order);await click('.other-candidates');await wait(`document.body.innerText.includes('후보 1/2')&&document.querySelectorAll('.poster-card:not(:disabled)').length===6`);pass('disjoint-candidate-pages-and-reload-order');
+    await viewport(360);await click('.other-candidates');
+    const order=await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).candidate_order.grand`);
+    assert.equal(order.length,6);await cdp('Page.reload');await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`);
+    assert.deepEqual(await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).candidate_order.grand`),order);pass('current-six-restored-after-refresh');
     const height=await js(`document.querySelector('.movie-poster').offsetHeight`);await js(`document.querySelector('.poster-card img').src='/design/qa-missing-image.jpg'`);await wait(`document.querySelector('.movie-poster small')?.textContent==='포스터 없음'`);assert.equal(await js(`document.querySelector('.movie-poster').offsetHeight`),height);await shot('selection-fallback-360');pass('real-404-poster-fallback-stable-size');
     await click('.search-toggle');await wait(`document.activeElement.id==='movie-query'`);const before=productRequests;
     await js(`document.querySelector('#movie-query').dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}))`);await cdp('Input.insertText',{text:'기생충'});await new Promise(r=>setTimeout(r,500));assert.equal(productRequests,before);await js(`document.querySelector('#movie-query').dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:'기생충'}))`);
@@ -55,6 +57,12 @@ try{
    for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);await shot(`result-${width}`);await shot(`result-${width}-full`,true);pass('real-result-three-awards',{width});}
    await cdp('Page.reload');await wait(`document.querySelectorAll('.result-film').length===3`);pass('result-restore');
    const original=await js(`localStorage.getItem('banguseok:m1-draft:v1.1')`);
+   for(const category of ['once','dissent','rescue']){
+    await go('/create/awards/'+category);await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`);await click('.poster-card');await wait(`document.querySelector('.selection-bar .primary-action:not(:disabled)')`);await click('.selection-bar .primary-action');await wait(`location.pathname!=='/create/awards/${category}'`);
+   }
+   await go('/create/result');await wait(`document.querySelectorAll('.result-film').length===6`);
+   for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);await shot(`actual-six-selected-${width}-full`,true);pass('six-awards-selected-through-real-UI',{width});}
+
    const metadata=JSON.parse(await readFile('artifacts/m2/catalog-verified.json','utf8')).sort((a,b)=>b.title.length-a.title.length);
    const stress={...newSurveyDraft(),nickname:'영화제집행위원장열두글자'.slice(0,12),current_question:5,current_screen:'result'};
    for(const[id,index]of ['grand','lifetime','sorry','once','dissent','rescue'].map((id,i)=>[id,i])){const m=metadata[index];stress.selections[id]={category_id:id,tmdb_id:m.tmdb_id,title:m.title,original_title:m.original_title,release_year:m.release_year,poster_path:m.poster_path};}
@@ -66,6 +74,25 @@ try{
    await js(`localStorage.removeItem('banguseok:m1-draft:v1.1')`);await go('/create/result');await wait(`document.querySelector('.result-empty')`);assert.equal(await js(`document.body.innerText.includes('작성 중인 초안이 없어요.')`),true);pass('direct-result-no-draft-recovery');
    await js(`localStorage.setItem('banguseok:m1-draft:v1.1',${JSON.stringify(original)})`);await go('/create/result');await wait(`document.querySelectorAll('.result-film').length===3`);await click('.result-edit a[href="/create/survey"]');await wait(`document.querySelector('input[type=radio]')`);pass('result-reedit');
   }
+ }
+ if(stage==='selection'){
+  const selected=await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).selections`);
+  await go('/create/awards/grand');await wait(`document.querySelectorAll('.poster-card').length===6`);
+  await wait(`!document.querySelector('.candidate-toolbar [role=status]').textContent.includes('확인하는 중')`);
+  for(const width of [360,390,1280]){
+   await viewport(width);const before=productRequests,seen=new Set(),durations=[];let repeated=false;
+   let prev=await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).candidate_order.grand`);prev.forEach(id=>seen.add(id));
+   for(let i=0;i<24;i++){
+    const t=performance.now();await click('.other-candidates');const next=await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).candidate_order.grand`);durations.push(Math.round(performance.now()-t));
+    assert.equal(new Set(next).size,6);assert.ok(next.some(id=>!prev.includes(id)));repeated ||= next.some(id=>seen.has(id));next.forEach(id=>seen.add(id));prev=next;
+    assert.deepEqual(await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).selections`),selected);
+   }
+   assert.equal(productRequests,before);assert.ok(seen.size>30);assert.ok(repeated);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);
+   await shot(`rolling-${width}-full`,true);pass('24-local-refreshes-no-api-calls',{width,uniqueMovies:seen.size,repeatAllowed:repeated,extraApiCalls:productRequests-before,maxClickAndReadMs:Math.max(...durations)});
+  }
+  await go('/create/awards/lifetime');await wait(`document.querySelectorAll('.poster-card').length===6`);await go('/create/awards/grand');await wait(`document.querySelectorAll('.poster-card').length===6`);await cdp('Page.reload');await wait(`document.querySelectorAll('.poster-card').length===6`);assert.deepEqual(await js(`JSON.parse(localStorage.getItem('banguseok:m1-draft:v1.1')).selections`),selected);pass('confirmed-winner-survives-categories-and-reload');
+  await cdp('Fetch.enable',{patterns:[{urlPattern:'*/api/catalog/movies',requestStage:'Request'}]});await cdp('Page.reload');await wait(`document.querySelector('.form-error')?.textContent.includes('확인된 후보')`);assert.equal(await js(`document.querySelectorAll('.poster-card:not(:disabled)').length`),6);await click('.poster-card');await wait(`document.querySelector('.selection-bar .primary-action:not(:disabled)')`);pass('503-hydration-fallback-still-nominates');await click('.selection-bar .primary-action');await wait(`location.pathname!=='/create/awards/grand'`);await go('/create/awards/grand');await wait(`document.querySelector('.form-error')?.textContent.includes('확인된 후보')`);pass('503-fallback-confirmation-and-category-return');
+  await cdp('Fetch.disable');await click('.form-error button');await wait(`!document.querySelector('.form-error')`);pass('explicit-retry-recovers-metadata');
  }
  await writeFile(`${out}/${stage}-checks.json`,JSON.stringify({stage,scope:'Actual React / isolated Chrome / local draft / live TMDB; no DB writes',checks},null,2));console.log(JSON.stringify({stage,status:'PASS',groups:checks.length,checks}));
 }catch(e){console.log(JSON.stringify({stage,status:'FAIL',reason:e.message,completed:checks,diagnostic:await inspect?.(),browserErrors}));process.exitCode=1;}

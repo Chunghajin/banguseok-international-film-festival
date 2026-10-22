@@ -19,21 +19,27 @@ test('all six names/descriptions/order and 72 candidate slots exactly match SCRE
  }
  assert.equal(CATEGORIES.find(c=>c.id==='once').groups[1][2].id,12477,'1988 animation, not the 2005 live-action namesake');
 });
-test('stratified Fisher-Yates pages are 2:2:2, disjoint and a valid permutation',()=>{
+test('six-film weighted batches use the wider pool and never repeat a full set consecutively',()=>{
  for(const c of CATEGORIES)for(const random of [()=>0,()=>.99999,Math.random]){
-  const order=candidateOrder(c.id,random);assert.ok(validOrder(c.id,order));
-  assert.equal(order.length,12);assert.equal(new Set(order).size,12);
-  assert.ok(order.slice(0,6).every(id=>!order.slice(6).includes(id)));
+  const order=candidateOrder(c.id,random);assert.ok(validOrder(c.id,order));assert.equal(order.length,6);
+  const next=candidateOrder(c.id,random,undefined,order);assert.ok(validOrder(c.id,next));assert.ok(next.some(id=>!order.includes(id)));
  }
- assert.notDeepEqual(candidateOrder('grand',()=>0),candidateOrder('grand',()=>.99999));
 });
-test('reload restores candidate order/page, pending, confirmed and skipped without reshuffling',()=>{
+test('reload restores the current six, pending, confirmed and skipped without reshuffling',()=>{
  let d={...newSurveyDraft(),current_screen:'category',current_question:5,current_category:'grand'};
- d=nominate(d,'grand',movie());d.candidate_page.grand=1;d=skipCategory(d,'lifetime');
+ d=nominate(d,'grand',movie());d=skipCategory(d,'lifetime');
  const restored=restoreSurveyDraft(JSON.stringify(d));assert.deepEqual(restored.draft,d);
  const done=confirmSelection(restored.draft,'grand').state;
  assert.equal(done.selections.grand.tmdb_id,496243);assert.equal(done.pending_selection.grand,null);
- assert.equal(done.candidate_page.grand,1);assert.deepEqual(done.candidate_order,d.candidate_order);
+ assert.deepEqual(done.candidate_order,d.candidate_order);
+});
+test('legacy page two migrates to six without losing answers, UUID or confirmed awards',()=>{
+ const d={...newSurveyDraft(),candidate_page:{grand:1}};
+ const old=CATEGORIES[0].groups.flat().map(m=>m.id);d.candidate_order.grand=old;d.selections.grand=movie();
+ const restored=restoreSurveyDraft(JSON.stringify(d)).draft;
+ assert.deepEqual(restored.candidate_order.grand,old.slice(6));assert.deepEqual(restored.selections,d.selections);
+ assert.equal(restored.draft_id,d.draft_id);assert.deepEqual(restored.survey,d.survey);assert.equal(restored.updated_at,d.updated_at);
+ assert.equal('candidate_page' in restored,false);
 });
 test('corrupt candidate arrays alone recover; valid category orders, answers and selections survive',()=>{
  const d={...newSurveyDraft(),survey:{q1:0,q2:null,q3:4,q4:2,q5:1,q6:'zero'}};
