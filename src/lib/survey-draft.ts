@@ -1,4 +1,4 @@
-import { newAwardState, restoreAwards, type AwardState } from "./award-state.ts";
+import { newAwardState, restoreAwards, categoryRecord, candidateOrder, type AwardState } from "./award-state.ts";
 import { EMPTY_SURVEY, QUESTIONS, validAnswer, type Answer, type QuestionId, type Survey } from "./survey.ts";
 
 // Keep the M1 storage key so existing answers and UUIDs survive the M2 upgrade.
@@ -60,6 +60,6 @@ export function advanceSurvey(draft: SurveyDraft, skip = false): SurveyDraft {
   const id = QUESTIONS[draft.current_question].id;
   if (!skip && draft.survey[id] === null) throw new Error("ANSWER_REQUIRED");
   const next = skip ? setAnswer(draft, id, null) : draft;
-  return { ...next, current_question: Math.min(5, next.current_question + 1),
+  return { ...next, ...(next.current_question===5?{candidate_order:categoryRecord(id=>candidateOrder(id,Math.random,next.survey))}:{}), current_question: Math.min(5, next.current_question + 1),
     current_screen: next.current_question === 5 ? "awards" : "survey", updated_at: new Date().toISOString() };
 }

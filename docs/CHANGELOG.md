@@ -1,3 +1,10 @@
+## 2026-10-23 — 6편씩 반복 후보 추천
+
+- 검증된 통합3adb0e2에서 feature/rolling-candidates를 분리.66편의 실제 metadata 재사용, 부문/설문 약한 가중치·화면 내 중복/직전 동일 집합 방지·무제한 로컬 재추출 추가.
+- 현재6편 초안 복원과 구형 page2 이전, 확정작/검색작 보존. 최신 정보 확인 실패에도 안전 후보 선정·확정과 명시 재시도 가능. 반복 버튼72회에 추가 API/TMDB0회.
+- 전체134/134·lint·typecheck·기본 production build 통과. D+E 선정18·결과24·M2 브라우저15·M6 production runtime7그룹 회귀 통과. 실제 TMDB 검증66회. 상세 ROLLING_CANDIDATES.md.
+- M5/CAPTCHA/RLS/503/M6/DB schema 코드, 기존 브랜치 및 원격 환경 변경 없음. 로컬 fixture 검증이며 새 소스의 Preview E2E/배포/증명 등록은 미실행.
+
 ## 2026-10-22 — M5-B v2 격리 Preview·읽기 전용 preflight PASS
 
 - M5 전용 스냅샷125개 업로드, READY Preview `dpl_GgBbDBMSv5YRCNMG3UcsfcMp5Y9a` 배포 후 고정 alias 이동. 이전 A57 배포 보존·Preview alias 전용 롤백 명령 기록.
