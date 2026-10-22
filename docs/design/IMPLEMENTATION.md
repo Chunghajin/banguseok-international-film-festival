@@ -6,7 +6,7 @@
 
 1. 랜딩 + 공통 타이포그래피·자체 SVG — 완료. Chrome 360/390/1280 및 실제 초안 생성·설문 이동 4그룹 PASS. lint/typecheck PASS. CTA 하단642/650px.
 2. 설문 — 완료. E 서류·D 체크, 원문/척도/로컬 상태 유지. Chrome 7그룹(필수응답·복원·3폭·키보드·6문항 이동), lint/typecheck PASS.
-3. 영화 선정 — 대기.
+3. 영화 선정 — 완료. E 2열·실물 포스터 contain·D 캡션 선택 표시. Chrome 실 TMDB 11그룹 PASS(페이지/배열 복원·한글 검색·IME 이벤트·404 대체·확정/건너뛰기·고정 바 스크롤). 첫 후보262px(360/390). lint/typecheck PASS.
 4. 공식 결과 발표 — 대기.
 
 원칙: 문항 QUESTIONS, 부문 CATEGORIES, 특별상 규칙과 상태·라우팅·실제 영화 API는 유지한다. 별도 de-design.css에 디자인을 모아 기존 동작 CSS와 구분한다. public/design의 SVG는 자체 제작본이며 폰트는 전체 한글을 지원하는 OFL 로컬 파일이다. 시안 문자만 담긴 폰트·목업 영화 포스터는 이식하지 않는다.
