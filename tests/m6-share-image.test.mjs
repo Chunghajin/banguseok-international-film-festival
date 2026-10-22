@@ -13,7 +13,7 @@ test('3–6 published selections and exact published special award reach rendere
  for(const count of [3,4,5,6]){
   const value=snapshot(count),events=[];
   const handle=createShareImageHttp({environment:'production',protection:{start:async(_r,kind)=>events.push(kind)},read:async t=>{assert.equal(t,token);events.push('read');return value;},render:async s=>{events.push('render');assert.equal(s.award_sentence,value.award_sentence);assert.equal(s.special_award_title,value.special_award_title);assert.deepEqual(s.selections,value.selections);assert.equal(s.survey,undefined);assert.equal(s.owner_id,undefined);assert.equal(s.evidence_ids,undefined);return new ArrayBuffer(8);}});
-  const response=await handle(request,token);assert.equal(response.status,200);assert.deepEqual(events,['png','public','read','render']);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal(response.headers.get('content-type'),'image/png');assert.match(response.headers.get('content-disposition'),/attachment/);
+  const response=await handle(request,token);assert.equal(response.status,200);assert.deepEqual(events,['png','public','read','render','read']);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal(response.headers.get('content-type'),'image/png');assert.match(response.headers.get('content-disposition'),/attachment/);
  }
 });
 test('M5 429/503 fail closed before database or renderer; Retry-After survives',async()=>{
@@ -32,4 +32,15 @@ test('max-length Korean, Latin, HTML-like and combining titles preserve all text
  for(const count of [3,4,5,6])for(const text of ['한'.repeat(500),'W'.repeat(500),'<script>긴 제목</script>','가\u0301'.repeat(250)]){
   const height=(984-(count-1)*12)/count-98;const fitted=imageText(text,780,height,38);assert.equal(fitted.text.replaceAll('\n',''),text.normalize('NFC'));assert.ok(fitted.text.split('\n').length*fitted.fontSize*1.3<=height);
  }
+});
+
+test('revocation/deletion during slow rendering discards the generated PNG',async()=>{
+ let published=true;
+ const handle=createShareImageHttp({environment:'development',read:async()=>{if(!published)throw new G1Error(404,'NOT_FOUND');return snapshot();},render:async()=>{published=false;return new ArrayBuffer(8);}});
+ const response=await handle(request,token);assert.equal(response.status,404);assert.match(response.headers.get('cache-control'),/no-store/);assert.equal((await response.json()).code,'NOT_FOUND');
+});
+test('republishing during rendering rejects the stale snapshot instead of returning old PNG',async()=>{
+ let current=snapshot();
+ const handle=createShareImageHttp({environment:'development',read:async()=>current,render:async()=>{current={...current,nickname:'갱신된 게시본'};return new ArrayBuffer(8);}});
+ const response=await handle(request,token);assert.equal(response.status,409);assert.match(response.headers.get('cache-control'),/no-store/);
 });

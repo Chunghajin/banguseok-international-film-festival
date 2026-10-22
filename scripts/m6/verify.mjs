@@ -4,22 +4,24 @@ import {spawn} from 'node:child_process';
 import {mkdir,mkdtemp,readFile,writeFile,rm,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
+import {G3_MOVIES} from '../../src/lib/g3-fixture.ts';
 import {generateFestivalResult} from '../../src/lib/festival-result.ts';
-const base='http://127.0.0.1:3196',tokens=['a','b','c','d'].map(c=>c.repeat(43));
+const base='http://127.0.0.1:3196',tokens=['a','b','c','d','e'].map(c=>c.repeat(43));
 const selections=['grand','lifetime','sorry','once','dissent','rescue'].map((category_id,i)=>({category_id,tmdb_id:i+1,title:['기생충','에브리씽 에브리웨어 올 앳 원스','인셉션','괴물','시네마 천국','벌새'][i],original_title:null,release_year:2026,poster_path:i===0?'/jjHccoFjbqlfr4VGLVLT7yek0Xn.jpg':null}));
-function snapshot(count,long=false){const movies=structuredClone(selections.slice(0,count));if(long){for(const movie of movies){movie.title='아주 긴 영화 제목과 한국어 '.repeat(40).slice(0,500);movie.poster_path=null;}}
+function snapshot(count,long=false,allPosters=false){const movies=structuredClone(selections.slice(0,count));if(allPosters)for(const [i,movie] of movies.entries()){const m=G3_MOVIES[i%G3_MOVIES.length];Object.assign(movie,{tmdb_id:m.tmdb_id,title:m.title,release_year:m.year,poster_path:m.poster_path});}if(long){for(const movie of movies){movie.title='아주 긴 영화 제목과 한국어 '.repeat(40).slice(0,500);movie.poster_path=null;}}
  const result=generateFestivalResult({rules_version:'result-v1.1',survey:{q1:4,q2:0,q3:0,q4:0,q5:0,q6:'zero'},selections:movies});return {nickname:'테스트 위원장',...result.result,selections:movies,awarded_count:count,brand_version:'1.1',created_year:2026};}
-const snapshots=[snapshot(3),snapshot(6),snapshot(6,true),snapshot(3,true)];
+const snapshots=[snapshot(3),snapshot(6),snapshot(6,true),snapshot(3,true),snapshot(6,false,true)];
 let revoked=false,app,chrome,socket;const profile=await mkdtemp(join(tmpdir(),'banguseok-m6-')),report={checks:[],images:[]};
 const pass=name=>{report.checks.push(name);console.log(`PASS: ${name}`);};
 const mock=createServer((req,res)=>{const token=new URL(req.url,'http://localhost').searchParams.get('token')?.slice(3),index=tokens.indexOf(token);res.setHeader('Content-Type','application/json');res.end(JSON.stringify(index>=0&&!revoked?[{public_snapshot:snapshots[index]}]:[]));});
 await mkdir('artifacts/m6',{recursive:true});
+await rm('artifacts/m6/downloads',{recursive:true,force:true});
 try {
  await new Promise((resolve,reject)=>{mock.once('error',reject);mock.listen(3197,'127.0.0.1',resolve);});
  app=spawn(process.execPath,['node_modules/next/dist/bin/next','dev','--hostname','127.0.0.1','--port','3196'],{env:{...process.env,NEXT_PUBLIC_SUPABASE_URL:'http://127.0.0.1:3197',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'fixture-only',SUPABASE_SERVICE_ROLE_KEY:'fixture-only'},stdio:['ignore','ignore','pipe']});
  let logs='';app.stderr.on('data',d=>{logs+=d;});
  for(let i=0;;i++){try{if((await fetch(`${base}/api/share-image/bad`)).status===404)break;}catch{}if(i>120)throw Error(`APP_START_FAILED ${logs.slice(-800)}`);await new Promise(r=>setTimeout(r,500));}
- for(const [i,name] of ['three','six','six-long','three-long'].entries()){
+ for(const [i,name] of ['three','six','six-long','three-long','six-posters'].entries()){
   const started=performance.now(),response=await fetch(`${base}/api/share-image/${tokens[i]}`);assert.equal(response.status,200,await response.clone().text().then(t=>t.slice(0,150)));assert.equal(response.headers.get('content-type'),'image/png');assert.match(response.headers.get('cache-control'),/no-store/);
   const png=Buffer.from(await response.arrayBuffer());assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');assert.equal(png.readUInt32BE(16),1080);assert.equal(png.readUInt32BE(20),1920);await writeFile(`artifacts/m6/${name}.png`,png);report.images.push({name,bytes:png.length,milliseconds:Math.round(performance.now()-started)});
  }
@@ -36,13 +38,24 @@ try {
  async function evaluate(expression){const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error('BROWSER_EVALUATION_FAILED');return r.result.value;}
  async function wait(expression){for(let i=0;i<200;i++){try{if(await evaluate(`Boolean(${expression})`))return;}catch{}await new Promise(r=>setTimeout(r,100));}throw Error(`WAIT ${expression}: ${await evaluate(`document.querySelector('.share-image-actions')?.innerText`)}`);}
  async function click(text){await evaluate(`Array.from(document.querySelectorAll('button,a')).find(e=>e.textContent===${JSON.stringify(text)}).click()`);}
- await cdp('Page.addScriptToEvaluateOnNewDocument',{source:`Object.defineProperty(navigator,'canShare',{value:()=>true});Object.defineProperty(navigator,'share',{value:async data=>{window.shared={name:data.files[0].name,type:data.files[0].type,size:data.files[0].size};if(window.cancelShare)throw new DOMException('cancel','AbortError');}});`});
+ await cdp('Page.addScriptToEvaluateOnNewDocument',{source:`Object.defineProperty(navigator,'canShare',{value:()=>{if(window.shareMode==='capability-error')throw new DOMException('blocked','NotAllowedError');return window.shareMode!=='unsupported';}});Object.defineProperty(navigator,'share',{value:async data=>{window.shared={name:data.files[0].name,type:data.files[0].type,size:data.files[0].size};if(window.cancelShare)throw new DOMException('cancel','AbortError');if(window.shareMode==='denied')throw new DOMException('denied','NotAllowedError');}});`});
  await cdp('Page.navigate',{url:`${base}/f/${tokens[1]}`});await wait(`document.querySelector('.share-image-actions button') && Object.keys(document.querySelector('.share-image-actions button')).some(k=>k.startsWith('__reactProps'))`);
  assert.equal(await evaluate(`document.querySelectorAll('.result-film').length`),6);assert.ok(await evaluate(`document.documentElement.scrollWidth<=360`));await click('공유 이미지 만들기');await wait(`document.querySelector('a[download]')`);
  assert.deepEqual(await evaluate(`(async()=>{const b=await(await fetch(document.querySelector('a[download]').href)).blob();const i=await createImageBitmap(b);return [i.width,i.height]})()`),[1080,1920]);pass('Chrome mobile viewport: public result intact, actual PNG blob decoded and download link ready');
  await cdp('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:resolve('artifacts/m6/downloads')});await click('PNG 다운로드');for(let i=0;i<100;i++){try{assert.ok((await stat('artifacts/m6/downloads/banguseok-festival.png')).size>1000);break;}catch{if(i===99)throw Error('DOWNLOAD_FAILED');await new Promise(r=>setTimeout(r,100));}}pass('Chrome writes actual PNG download');
  await click('이미지 공유');await wait(`document.querySelector('.share-image-actions [role=status]').textContent.includes('공유를 마쳤어요')`);assert.equal((await evaluate('window.shared')).type,'image/png');
  await evaluate('window.cancelShare=true');await click('이미지 공유');await wait(`document.querySelector('.share-image-actions [role=status]').textContent.includes('취소')`);assert.ok(await evaluate(`Boolean(document.querySelector('a[download]'))`));pass('Mocked Web Share receives PNG File; cancellation keeps download');
+ await evaluate('window.cancelShare=false;window.shareMode="denied"');await click('이미지 공유');await wait(`document.querySelector('.share-image-actions [role=status]').textContent.includes('다운로드나 이미지 열기')`);
+ await rm('artifacts/m6/downloads/banguseok-festival.png',{force:true});await click('PNG 다운로드');
+ for(let i=0;i<100;i++){try{assert.ok((await stat('artifacts/m6/downloads/banguseok-festival.png')).size>1000);break;}catch{if(i===99)throw Error('FALLBACK_DOWNLOAD_FAILED');await new Promise(r=>setTimeout(r,100));}}
+ pass('Share permission denied: actual fallback file download still works');
+ for(const mode of ['unsupported','capability-error']){
+  await evaluate(`window.shareMode=${JSON.stringify(mode)}`);await click('PNG 다시 만들기');await wait(`document.querySelector('a[download]') && document.querySelector('.share-image-actions [role=status]').textContent.includes('준비됐어요')`);
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('button')).some(e=>e.textContent==='이미지 공유')`),false);
+  assert.deepEqual(await evaluate(`(async()=>{const image=await createImageBitmap(await(await fetch(document.querySelector('a[download]').href)).blob());return [image.width,image.height]})()`),[1080,1920]);
+ }
+ pass('Unsupported/blocked canShare leaves a valid PNG download without a share button');
+
  await evaluate(`document.querySelector('.share-image-actions').scrollIntoView()`);const shot=await cdp('Page.captureScreenshot',{format:'png'});await writeFile('artifacts/m6/mobile-actions.png',Buffer.from(shot.data,'base64'));
  revoked=true;assert.equal((await fetch(`${base}/api/share-image/${tokens[1]}`)).status,404);await click('PNG 다시 만들기');await wait(`document.querySelector('.share-image-actions [role=status]').textContent.includes('찾을 수 없어요')`);assert.equal(await evaluate(`document.querySelectorAll('.result-film').length`),6);assert.equal(await evaluate(`document.querySelector('a[download]')===null`),true);pass('Revocation returns 404, clears stale download, preserves existing HTML');
  // Both the packaged font and the renderer WASM must survive output tracing.

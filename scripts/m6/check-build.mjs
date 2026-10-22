@@ -15,7 +15,7 @@ const mock=createServer(async(req,res)=>{
   if(mode==='outage'){res.statusCode=503;res.end('{}');return;}
   res.end(JSON.stringify({policy_version:POLICY_VERSION,allowed:mode!=='limit',retry_after:mode==='limit'?23:0}));return;
  }
- reads++;res.end(JSON.stringify(mode==='revoked'?[]:[{public_snapshot:snapshot}]));
+ reads++;res.end(JSON.stringify(['revoked','deleted'].includes(mode)?[]:[{public_snapshot:snapshot}]));
 });
 await mkdir('artifacts/m6',{recursive:true});
 try {
@@ -31,8 +31,8 @@ try {
  const url=`http://127.0.0.1:3198/api/share-image/${token}`,headers={Host:'127.0.0.1:3198','x-vercel-forwarded-for':'127.0.0.1',Origin:'https://127.0.0.1:3198'};
  for(let i=0;;i++){try{const r=await fetch(url);if(r.status===503)break;}catch{}if(i>50)throw Error(`START_FAILED ${logs.slice(-300)}`);await new Promise(r=>setTimeout(r,100));}
  assert.equal(reads,0);assert.equal(budgets,0);console.log('PASS: production runtime rejects untrusted platform/Host before DB/render');
- const response=await fetch(url,{headers});assert.equal(response.status,200,JSON.stringify({body:await response.clone().text(),budgets,reads,violations,logs}));assert.equal(budgets,2);assert.equal(reads,1);
+ const response=await fetch(url,{headers});assert.equal(response.status,200,JSON.stringify({body:await response.clone().text(),budgets,reads,violations,logs}));assert.equal(budgets,2);assert.equal(reads,2);
  const png=Buffer.from(await response.arrayBuffer());assert.equal(png.readUInt32BE(16),1080);assert.equal(png.readUInt32BE(20),1920);await writeFile('artifacts/m6/production-local.png',png);console.log('PASS: built Node runtime renders PNG through both real M5 guards with local budget RPC fixture');
- for(const [state,status] of [['limit',429],['outage',503],['revoked',404]]){mode=state;const before=reads,r=await fetch(url,{headers});assert.equal(r.status,status);if(state==='limit')assert.equal(r.headers.get('retry-after'),'23');if(state!=='revoked')assert.equal(reads,before);console.log(`PASS: built runtime ${state} → ${status}`);}
- assert.equal(violations,0);await writeFile('artifacts/m6/production-local.json',JSON.stringify({environment:'local production build with mock Supabase, NOT Vercel',width:1080,height:1920,budgets,reads,bundle,checks:['platform rejected','PNG 200','429 Retry-After','outage 503','revoked 404']},null,2)+'\n');
+ for(const [state,status] of [['limit',429],['outage',503],['revoked',404],['deleted',404]]){mode=state;const before=reads,r=await fetch(url,{headers:{...headers,'If-None-Match':response.headers.get('etag')??'"previous-png"','If-Modified-Since':new Date().toUTCString()}});assert.equal(r.status,status);assert.match(r.headers.get('cache-control'),/no-store/);if(state==='limit')assert.equal(r.headers.get('retry-after'),'23');if(!['revoked','deleted'].includes(state))assert.equal(reads,before);console.log(`PASS: built runtime ${state} → ${status}`);}
+ assert.equal(violations,0);await writeFile('artifacts/m6/production-local.json',JSON.stringify({environment:'local production build with mock Supabase, NOT Vercel',width:1080,height:1920,budgets,reads,bundle,checks:['platform rejected','PNG 200','429 Retry-After','outage 503','revoked 404 with conditional request','deleted 404 with conditional request']},null,2)+'\n');
 } finally {app?.kill();mock.closeAllConnections();await new Promise(resolve=>mock.close(resolve));}

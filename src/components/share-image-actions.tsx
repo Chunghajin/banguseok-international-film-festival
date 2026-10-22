@@ -16,7 +16,11 @@ export default function ShareImageActions({token}:{token:string}) {
       }
       if(response.headers.get('content-type')!=='image/png')throw new Error('이미지 응답을 확인하지 못했어요.');
       const image = new File([await response.blob()],'banguseok-festival.png',{type:'image/png'});
-      setFile(image);setUrl(URL.createObjectURL(image));setCanShare(Boolean(typeof navigator.share==='function'&&navigator.canShare?.({files:[image]})));
+      setFile(image);setUrl(URL.createObjectURL(image));
+      let supported=false;
+      try {supported=Boolean(typeof navigator.share==='function'&&navigator.canShare?.({files:[image]}));}
+      catch { /* Capability checks can be denied independently of downloading. */ }
+      setCanShare(supported);
       setMessage('이미지가 준비됐어요. PNG를 저장하거나 공유해 주세요.');
     } catch(error) {setMessage(error instanceof Error?error.message:'이미지를 만들지 못했어요.');}
     finally {lock.current=false;setBusy(false);}

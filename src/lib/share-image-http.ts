@@ -23,6 +23,11 @@ export function createShareImageHttp({render, read = (token:string) => createFes
       // Only the published allowlist crosses into the renderer; never accept browser result data.
       const snapshot = publicSnapshot(await read(token));
       const png = await render(snapshot);
+      // A slow render must not outlive revocation, deletion or replacement of its published snapshot.
+      const current = publicSnapshot(await read(token));
+      if (JSON.stringify(current) !== JSON.stringify(snapshot)) {
+        return Response.json({code:'PUBLIC_RESULT_CHANGED', message:'공개 결과가 바뀌었어요. PNG를 다시 만들어 주세요.'}, {status:409, headers});
+      }
       return new Response(png, {headers:{...headers, 'Content-Type':'image/png',
         'Content-Disposition':'attachment; filename="banguseok-festival.png"'}});
     } catch (error) {
