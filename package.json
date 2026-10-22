@@ -29,6 +29,8 @@
     "verify:m5:preview": "node --conditions=react-server --env-file-if-exists=.env.local scripts/m5/preview-verify.mjs",
     "verify:m5:browser": "M5_UI_CHECK=yes node --env-file-if-exists=.env.local scripts/m4/browser.mjs",
     "verify:m5:http": "node --env-file-if-exists=.env.local scripts/m5/check-http.mjs",
+    "verify:m6:build": "node --conditions=react-server scripts/m6/check-build.mjs",
+    "verify:m6": "node scripts/m6/verify.mjs",
     "verify:m5:replay": "node --env-file-if-exists=.env.local scripts/m5/replay-diagnostic.mjs"
   },
   "dependencies": {

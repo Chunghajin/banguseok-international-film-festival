@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import ShareImageActions from '@/components/share-image-actions';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useRouter} from 'next/navigation';
 import FestivalPaper from '@/components/festival-paper';
@@ -29,6 +30,7 @@ export default function ManageFestival({id}:{id:string}){
    {share&&<><p>{share.published_revision===row.revision?'공유본은 현재 저장본과 같습니다.':'공유본은 이전 내용입니다. 수정 저장은 공개본을 자동 변경하지 않습니다.'}</p><div data-sensitive="share-address"><label htmlFor="share-address">조회 전용 공개 URL</label><input id="share-address" readOnly value={url} onFocus={e=>e.currentTarget.select()}/><button className="primary-action" onClick={copy}>공개 URL 복사</button><a className="text-action" href={url} target="_blank" rel="noopener noreferrer">공개본 보기 ↗</a></div>{copied&&<p role="status">공개 URL을 복사했어요.</p>}<button className="text-action" disabled={busy} onClick={()=>action('unpublish')}>공개 중단</button></>}
    {(!share||share.published_revision!==row.revision)&&<><p>현재 위에 표시된 내용으로 공유합니다. 설문 답변 원문과 CSV는 공개되지 않습니다. 링크를 아는 사람은 결과를 볼 수 있습니다.</p><label className="public-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>이 내용으로 공개하는 데 동의합니다.</label><button className="primary-action" disabled={!consent||busy} onClick={()=>action('publish')}>{share?'공유본 갱신':'공유 링크 만들기'}</button></>}
   </section>
+  {share?<ShareImageActions key={`${share.token}:${share.published_revision}`} token={share.token}/>:<p>공유 이미지는 공개 동의 후 공유 링크를 만들면 저장할 수 있어요.</p>}
   <section className="owner-actions"><h2>수정·삭제</h2><p className="survey-hint">{AUTH_NOTICE}</p><button className="primary-action" disabled={busy} onClick={()=>edit()}>로컬 초안에서 수정하기</button>
    {replace&&<div className="storage-notice" role="group" aria-label="편집 초안 교체 확인"><p>현재 로컬 초안을 서버 저장본으로 교체할까요? 저장하지 않은 로컬 수정은 사라집니다. 서버 저장본은 지우지 않습니다.</p><button className="text-action" onClick={()=>setReplace(false)}>취소</button><button className="text-action" onClick={()=>edit(true)}>편집 초안 열기</button></div>}
    <button className="text-action" disabled={busy} onClick={()=>setRemove(true)}>영화제 삭제</button>{remove&&<div className="storage-notice" role="group" aria-label="영화제 삭제 확인"><p>서버 영화제와 공개본을 삭제합니다. 기존 링크는 열리지 않습니다. 로컬 초안은 보존되며 저장본 연결만 해제합니다.</p><button className="text-action" disabled={busy} onClick={()=>setRemove(false)}>삭제 취소</button><button className="primary-action" disabled={busy} onClick={()=>action('delete')}>영구 삭제 확인</button></div>}
