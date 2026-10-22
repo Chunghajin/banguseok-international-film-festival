@@ -8,6 +8,7 @@ import {currentDraft,saveDraft,useSurveyDraft} from '@/lib/survey-store';
 import type {SurveyDraft} from '@/lib/survey-draft';
 import type {Movie} from '@/lib/tmdb';
 import MoviePoster from '@/components/movie-poster';
+import Crayon from '@/components/crayon';
 import MovieSearch,{movieRequest} from '@/components/movie-search';
 export default function AwardPicker({id}:{id:CategoryId}){
  const state=useSurveyDraft(),draft=state.draft,router=useRouter();
@@ -57,8 +58,9 @@ export default function AwardPicker({id}:{id:CategoryId}){
  const searchToggle=<button key="search-toggle" className="search-toggle text-action" ref={searchButton} aria-expanded={searching} aria-label={searching?'검색 닫기':'영화 제목으로 직접 검색'} onClick={()=>searching?closeSearch():setSearching(true)}>{searching?'검색 닫기':'직접 검색 ↗'}</button>;
  return <main id="main-content" className="award-picker" data-searching={searching}>
   <div className="survey-topline"><button className="text-action" onClick={leave}>← 목록으로</button><p>수상작 {count}/6</p></div>
-  <p className="section-kicker">AWARD 0{categoryIndex+1} / 06</p><h1 className="entry-title" ref={heading} tabIndex={-1}>{category.name}</h1>
+  <div className="award-document"><header className="award-heading"><div className="award-document-number" aria-hidden="true">0{categoryIndex+1}<Crayon mark="circle"/></div><p className="section-kicker">AWARD 0{categoryIndex+1} / 06</p><h1 className="entry-title" ref={heading} tabIndex={-1}>{category.name}</h1>
   <p className="category-description">{category.description}</p><p className="viewing-reminder">지금까지 실제로 본 영화 중 골라 주세요.</p>
+  </header><div className="award-document-body">
   {state.notice&&<p className="storage-notice" role="status">{state.notice}</p>}
   {!state.ready?<p role="status">초안을 확인하고 있어요.</p>:!draft||draft.current_question!==5?<Link className="primary-action" href="/create/survey">먼저 신고서 작성하기 →</Link>:<>
    {selected&&<p className="current-winner">현재 수상작: {selected.title} ({selected.release_year??'연도 미상'})</p>}
@@ -75,7 +77,7 @@ export default function AwardPicker({id}:{id:CategoryId}){
      return <button className="poster-card" key={movieId} type="button" disabled={!valid} aria-pressed={checked} aria-label={`${valid?movie.title:expected.label} · ${valid?movie.release_year??'연도 미상':expected.year}${!valid?' · 정보 확인 중 또는 정보 없음':''}`} onClick={()=>{if(valid)void choose(movie);}}>
       <MoviePoster key={movie?.poster_path??'none'} path={valid?movie.poster_path:null} title={valid?movie.title:expected.label}/>
       <span className="poster-title">{valid?movie.title:expected.label}</span><span className="poster-year">{valid?movie.release_year??'연도 미상':expected.year}</span>
-      {checked&&<span className="poster-selected">✓ {pending?.tmdb_id===movieId?'선택됨':'수상작'}</span>}{!valid&&<span className="poster-year">{loading?'로딩 중':'정보 없음'}</span>}
+      {checked&&<span className="poster-selected"><Crayon mark="check"/>{pending?.tmdb_id===movieId?'선정 대기':'수상작'}</span>}{!valid&&<span className="poster-year">{loading?'로딩 중':'정보 없음'}</span>}
      </button>;
     })}</div>
     <button className="text-action other-candidates" onClick={switchPage}>{page===0?'다른 후보 보기':'처음 후보 다시 보기'}</button>
@@ -94,5 +96,6 @@ export default function AwardPicker({id}:{id:CategoryId}){
     {categoryIndex<5&&<Link href={`/create/awards/${CATEGORIES[categoryIndex+1].id}`} onClick={()=>persist(draft,CATEGORIES[categoryIndex+1].id)}>다음 부문 →</Link>}
    </nav>
   </>}
+  </div></div>
  </main>;
 }

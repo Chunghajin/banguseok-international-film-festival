@@ -1,13 +1,16 @@
+import Crayon from "@/components/crayon";
 import DraftActions from "@/components/draft-actions";
 
 export default function Home() {
   return <main id="main-content" className="landing">
     <section className="landing-intro" aria-labelledby="festival-title">
-      <div className="edition-line"><span>THE FESTIVAL OF ONE</span><span>나 혼자 여는 국제영화제</span></div>
-      <p className="english-name">BANGUSEOK<br />International Film Festival</p>
+      <div className="edition-line"><span>나 혼자 여는 국제영화제</span><span>집행위원장 · 나</span></div>
+      <div className="opening-poster"><div className="festival-crest"><Crayon mark="laurel"/><div><span>방구석에서 개막합니다</span><strong>방국제</strong><small>BANGUSEOK<br/>International Film Festival</small></div><p className="hand-note">관객도 저입니다.</p></div><div className="opening-declaration">
+      <p className="english-name">한 사람의 공식 개막 선언</p>
       <h1 id="festival-title" className="hero-title">심사위원 만장일치.<br /><span className="crayon-underline">심사위원 1명.</span></h1>
       <p className="hero-description">지금까지 본 영화로,<br />당신의 영화제를 열어 보세요.</p>
       <DraftActions />
+      </div></div>
     </section>
     <section className="festival-example" aria-labelledby="example-title">
       <div className="example-heading"><h2 id="example-title">당신의 취향이 공식 기록이 되는 순간.</h2><span className="sample-mark">예시</span></div>

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Crayon from "@/components/crayon";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EMPTY_SURVEY, QUESTIONS } from "@/lib/survey";
@@ -30,7 +31,7 @@ export default function SurveyForm() {
   }
   return <main id="main-content" className="survey-page">
     <div className="survey-topline"><button className="text-action" onClick={previous}>← 이전</button><p>영화적 자아 신고서 <span>{index + 1}/6</span></p></div>
-    <progress className="survey-progress" value={index + 1} max={6} aria-label="현재 설문 문항" />
+    <div className="survey-document"><aside className="survey-document-aside"><p className="section-kicker">영화적 자아 신고서</p><h2>집행위원장<br/>인터뷰</h2><div className="survey-document-number" aria-hidden="true">{String(index + 1).padStart(2,"0")}<Crayon mark="circle"/></div><p className="survey-document-count">총 6문항 중 {index + 1}번째 질문</p><progress className="survey-progress" value={index + 1} max={6} aria-label="현재 설문 문항"/><p className="hand-note">정답은 없습니다.<br/>심사위원은 당신이니까요.</p></aside><div className="survey-document-body">
     {state.notice && <p className="storage-notice" role="status">{state.notice}</p>}
     {!state.ready ? <p role="status">작성 중인 초안을 확인하고 있어요.</p> : <form onSubmit={event => { event.preventDefault(); next(); }} noValidate>
       <p className="question-number" aria-hidden="true">QUESTION {String(index + 1).padStart(2, "0")}</p>
@@ -39,7 +40,7 @@ export default function SurveyForm() {
         <div className="survey-options">{question.options.map((option, optionIndex) => <label key={`${question.id}-${option.value}`} className="survey-option">
           <input ref={optionIndex === 0 ? firstRadio : undefined} type="radio" name={question.id} value={option.value} checked={answers[question.id] === option.value}
             onChange={() => { setError(""); saveDraft(setAnswer(state.draft ?? newSurveyDraft(), question.id, option.value)); }} />
-          <span>{option.label}</span><span className="selected-note" aria-hidden="true">선택됨</span>
+          <span className="option-order" aria-hidden="true">{String(optionIndex+1).padStart(2,"0")}</span><span>{option.label}</span><span className="selected-note" aria-hidden="true"><Crayon mark="check"/></span>
         </label>)}</div>
       </fieldset>
       <p id="survey-hint" className="survey-hint">{question.id === "q6" ? "올해 관람량과 관계없이, 예전에 본 영화로도 참여할 수 있어요." : "답변은 특별상의 농담을 고르는 데 사용합니다."}</p>
@@ -48,6 +49,7 @@ export default function SurveyForm() {
         <button className="text-action skip-question" type="button" onClick={() => next(true)}>이 질문 건너뛰기</button></div>
       <p className="save-caption">{state.canPersist ? "답변과 진행 위치는 이 브라우저에 임시 저장됩니다." : "현재 창에서만 임시로 이어집니다. 새로고침에 주의해 주세요."}</p>
     </form>}
+    </div></div>
     <Link className="return-home" href="/">방국제 입구로</Link>
   </main>;
 }
