@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {mkdir,mkdtemp,rm,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {newSurveyDraft} from '../../src/lib/survey-draft.ts';
 const stage=process.argv[2]??'landing',base=process.env.DESIGN_BASE_URL??'http://127.0.0.1:3114',out='artifacts/design-de';
 assert.ok(['landing','survey','selection','result'].includes(stage));await mkdir(out,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'banguseok-design-'));
@@ -52,7 +53,18 @@ try{
   if(stage==='result'){
    await go('/create/review');await click('a[href="/create/result"]');await wait(`document.querySelectorAll('.result-film').length===3`);await js(`document.querySelectorAll('.movie-poster img').forEach(i=>i.loading='eager')`);await wait(`[...document.querySelectorAll('.result-film img')].every(i=>i.complete&&i.naturalWidth>0)`);
    for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);await shot(`result-${width}`);await shot(`result-${width}-full`,true);pass('real-result-three-awards',{width});}
-   await cdp('Page.reload');await wait(`document.querySelectorAll('.result-film').length===3`);pass('result-restore');await click('.result-edit a[href="/create/survey"]');await wait(`document.querySelector('input[type=radio]')`);pass('result-reedit');
+   await cdp('Page.reload');await wait(`document.querySelectorAll('.result-film').length===3`);pass('result-restore');
+   const original=await js(`localStorage.getItem('banguseok:m1-draft:v1.1')`);
+   const metadata=JSON.parse(await readFile('artifacts/m2/catalog-verified.json','utf8')).sort((a,b)=>b.title.length-a.title.length);
+   const stress={...newSurveyDraft(),nickname:'영화제집행위원장열두글자'.slice(0,12),current_question:5,current_screen:'result'};
+   for(const[id,index]of ['grand','lifetime','sorry','once','dissent','rescue'].map((id,i)=>[id,i])){const m=metadata[index];stress.selections[id]={category_id:id,tmdb_id:m.tmdb_id,title:m.title,original_title:m.original_title,release_year:m.release_year,poster_path:m.poster_path};}
+   await js(`localStorage.setItem('banguseok:m1-draft:v1.1',${JSON.stringify(JSON.stringify(stress))})`);await go('/create/result');await wait(`document.querySelectorAll('.result-film').length===6`);
+   for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);assert.equal(await js(`[...document.querySelectorAll('.result-film')].every(e=>{const c=e.querySelector('.result-film-caption').getBoundingClientRect(),p=e.querySelector('.movie-poster').getBoundingClientRect();return c.right<=p.left-10})`),true);assert.equal(await js(`(()=>{const t=document.querySelector('.result-emblem strong').getBoundingClientRect(),w=document.querySelector('.result-emblem .crayon').getBoundingClientRect();return t.width<w.width*.6})()`),true);await shot(`result-six-awards-${width}-full`,true);pass('six-awards-long-titles-poster-caption-and-laurel-clearance',{width});}
+   await viewport(360);await js(`const i=document.querySelector('.result-film img');if(i)i.src='/design/qa-missing-result.jpg'`);await wait(`document.querySelector('.result-film .movie-poster small')?.textContent==='포스터 없음'`);pass('result-poster-failure-keeps-HTML');
+   stress.selections.sorry=null;stress.selections.once=null;stress.selections.dissent=null;stress.selections.rescue=null;
+   await js(`localStorage.setItem('banguseok:m1-draft:v1.1',${JSON.stringify(JSON.stringify(stress))})`);await go('/create/result');await wait(`document.querySelector('.result-empty')`);assert.equal(await js(`document.body.innerText.includes('3개 부문을 선정해 주세요.')`),true);pass('direct-result-under-three-blocked');
+   await js(`localStorage.removeItem('banguseok:m1-draft:v1.1')`);await go('/create/result');await wait(`document.querySelector('.result-empty')`);assert.equal(await js(`document.body.innerText.includes('작성 중인 초안이 없어요.')`),true);pass('direct-result-no-draft-recovery');
+   await js(`localStorage.setItem('banguseok:m1-draft:v1.1',${JSON.stringify(original)})`);await go('/create/result');await wait(`document.querySelectorAll('.result-film').length===3`);await click('.result-edit a[href="/create/survey"]');await wait(`document.querySelector('input[type=radio]')`);pass('result-reedit');
   }
  }
  await writeFile(`${out}/${stage}-checks.json`,JSON.stringify({stage,scope:'Actual React / isolated Chrome / local draft / live TMDB; no DB writes',checks},null,2));console.log(JSON.stringify({stage,status:'PASS',groups:checks.length,checks}));
