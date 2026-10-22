@@ -1,3 +1,10 @@
+## 2026-10-23 — 출시 후보 v2 통합·품질 검사
+
+-3adb0e2에서 feature/release-candidate-v2를 분리하고 e3ce8b8만 충돌 없이 병합(cccc6f2). 원본 브랜치/백업 불변, 제품 코드 추가 변경 없음.
+-134/134·lint·타입·production build 통과. 실제 TMDB66편 불일치0, 부문/설문 가중치 영향 확인,72회 추천 추가API0. 랜딩/설문/선정/결과/재편집/M2·M6 production/HTTP PNG 회귀 확인.
+- 일반 Chrome 생성·실제 PNG 다운로드338,870bytes/1080×1920 확인. 기존 M6 headless 캡처·공유 전체 회귀는 미완료로 별도 BLOCKED 기록. source/test 실험 변경은 원복하고 사실과 원인 추정을 분리함.
+- 로컬 사용자 테스트 http://127.0.0.1:3133 준비. DB는 GET 전용 합성 공개본 fixture이며 실제 DB/증명/배포/push/main 변경 없음. 상세 RELEASE_CANDIDATE_V2.md.
+
 ## 2026-10-23 — 6편씩 반복 후보 추천
 
 - 검증된 통합3adb0e2에서 feature/rolling-candidates를 분리.66편의 실제 metadata 재사용, 부문/설문 약한 가중치·화면 내 중복/직전 동일 집합 방지·무제한 로컬 재추출 추가.
