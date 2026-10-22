@@ -12,6 +12,7 @@ const mock=createServer(async(req,res)=>{
  if(req.url==='/rest/v1/rpc/consume_request_budget'){
   let body='';for await(const part of req)body+=part;const input=JSON.parse(body);budgets++;
   if(input.p_environment!=='preview'||input.p_fingerprint!==fingerprint){violations++;res.statusCode=500;res.end('{}');return;}
+  if(mode==='unverified'){res.statusCode=400;res.end(JSON.stringify({code:'P0001',message:'M5_PROTECTION_NOT_VERIFIED'}));return;}
   if(mode==='outage'){res.statusCode=503;res.end('{}');return;}
   res.end(JSON.stringify({policy_version:POLICY_VERSION,allowed:mode!=='limit',retry_after:mode==='limit'?23:0}));return;
  }
@@ -24,7 +25,7 @@ try {
   const trace=JSON.parse(await readFile(path,'utf8'));for(const f of trace.files)files.add(resolve(dirname(path),f));
  }
  const font=[...files].filter(f=>f.endsWith('NanumGothic-Regular.ttf')),wasm=[...files].filter(f=>f.endsWith('resvg.wasm'));
- assert.equal(font.length,1);assert.equal(wasm.length,1);let totalBytes=0;for(const path of files)totalBytes+=(await stat(path)).size;
+ assert.equal(font.length,1);assert.equal(wasm.length,1);assert.equal([...files].filter(f=>f.endsWith('/public/design/laurel.svg')).length,1);let totalBytes=0;for(const path of files)totalBytes+=(await stat(path)).size;
  const bundle={files:files.size,totalBytes,font,wasm};await writeFile('artifacts/m6/bundle.json',JSON.stringify(bundle,null,2)+'\n');
  await new Promise((resolve,reject)=>{mock.once('error',reject);mock.listen(3199,'127.0.0.1',resolve);});
  app=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3198'],{env,stdio:['ignore','ignore','pipe']});let logs='';app.stderr.on('data',d=>{logs+=d;});
@@ -33,6 +34,6 @@ try {
  assert.equal(reads,0);assert.equal(budgets,0);console.log('PASS: production runtime rejects untrusted platform/Host before DB/render');
  const response=await fetch(url,{headers});assert.equal(response.status,200,JSON.stringify({body:await response.clone().text(),budgets,reads,violations,logs}));assert.equal(budgets,2);assert.equal(reads,2);
  const png=Buffer.from(await response.arrayBuffer());assert.equal(png.readUInt32BE(16),1080);assert.equal(png.readUInt32BE(20),1920);await writeFile('artifacts/m6/production-local.png',png);console.log('PASS: built Node runtime renders PNG through both real M5 guards with local budget RPC fixture');
- for(const [state,status] of [['limit',429],['outage',503],['revoked',404],['deleted',404]]){mode=state;const before=reads,r=await fetch(url,{headers:{...headers,'If-None-Match':response.headers.get('etag')??'"previous-png"','If-Modified-Since':new Date().toUTCString()}});assert.equal(r.status,status);assert.match(r.headers.get('cache-control'),/no-store/);if(state==='limit')assert.equal(r.headers.get('retry-after'),'23');if(!['revoked','deleted'].includes(state))assert.equal(reads,before);console.log(`PASS: built runtime ${state} → ${status}`);}
- assert.equal(violations,0);await writeFile('artifacts/m6/production-local.json',JSON.stringify({environment:'local production build with mock Supabase, NOT Vercel',width:1080,height:1920,budgets,reads,bundle,checks:['platform rejected','PNG 200','429 Retry-After','outage 503','revoked 404 with conditional request','deleted 404 with conditional request']},null,2)+'\n');
+ for(const [state,status] of [['unverified',503],['limit',429],['outage',503],['revoked',404],['deleted',404]]){mode=state;const before=reads,r=await fetch(url,{headers:{...headers,'If-None-Match':response.headers.get('etag')??'"previous-png"','If-Modified-Since':new Date().toUTCString()}});assert.equal(r.status,status);assert.match(r.headers.get('cache-control'),/no-store/);if(state==='limit')assert.equal(r.headers.get('retry-after'),'23');if(!['revoked','deleted'].includes(state))assert.equal(reads,before);console.log(`PASS: built runtime ${state} → ${status}`);}
+ assert.equal(violations,0);await writeFile('artifacts/m6/production-local.json',JSON.stringify({environment:'local production build with mock Supabase, NOT Vercel',width:1080,height:1920,budgets,reads,bundle,checks:['platform rejected','missing evidence 503','PNG 200','429 Retry-After','outage 503','revoked 404 with conditional request','deleted 404 with conditional request']},null,2)+'\n');
 } finally {app?.kill();mock.closeAllConnections();await new Promise(resolve=>mock.close(resolve));}

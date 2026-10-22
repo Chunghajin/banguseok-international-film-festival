@@ -31,11 +31,13 @@ export default function ShareImageActions({token}:{token:string}) {
     catch(error) {setMessage(error instanceof Error&&error.name==='AbortError'?'공유를 취소했어요. PNG는 계속 저장할 수 있어요.':'공유하지 못했어요. PNG 다운로드나 이미지 열기를 이용해 주세요.');}
     finally {lock.current=false;setBusy(false);}
   }
-  return <section className="share-management share-image-actions" style={{display:'grid',gap:12}} aria-label="공유 이미지">
+  return <section className="share-management share-image-actions" aria-label="공유 이미지">
     <h2>수상 결과 이미지</h2><p>공개된 결과를 1080×1920 PNG로 만듭니다. 저장한 이미지는 공개 중단 후에도 남습니다.</p>
     <button className="primary-action" disabled={busy} onClick={generate}>{busy?'처리 중…':file?'PNG 다시 만들기':'공유 이미지 만들기'}</button>
-    {url&&<><a className="primary-action" href={url} download="banguseok-festival.png">PNG 다운로드</a><a className="text-action" href={url} target="_blank" rel="noopener noreferrer">이미지 열기 ↗</a></>}
-    {file&&canShare&&<button className="primary-action" disabled={busy} onClick={share}>이미지 공유</button>}
+    <div className="share-image-buttons">
+    {url&&<><a className="download-image" href={url} download="banguseok-festival.png">PNG 다운로드</a><a className="text-action" href={url} target="_blank" rel="noopener noreferrer">이미지 열기 ↗</a></>}
+    {file&&canShare&&<button className="download-image" disabled={busy} onClick={share}>이미지 공유</button>}
+    </div>
     <p role="status" aria-live="polite">{message}</p>
   </section>;
 }

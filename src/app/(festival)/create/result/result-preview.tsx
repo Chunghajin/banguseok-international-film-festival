@@ -17,7 +17,7 @@ export default function ResultPreview(){
   {state.notice&&<p className="storage-notice" role="status">{state.notice}</p>}
   {!state.ready?<p role="status">로컬 초안의 수상 기록을 확인하고 있어요.</p>:!preview?<section className="result-empty"><p className="section-kicker">OFFICIAL ANNOUNCEMENT</p><h1 className="entry-title">{draft?error:'작성 중인 초안이 없어요.'}</h1><p>공식 결과지는 확정한 수상작이 3개 부문 이상일 때 만들 수 있어요.</p><Link className="primary-action" href={draft?'/create/awards':'/'}>{draft?'수상작 선정으로 →':'방국제 입구로 →'}</Link></section>:<>
    <FestivalPaper nickname={chairName} data={preview} badge={draft?.editing_festival_id?"로컬 편집 미리보기":"로컬 미리보기 · 미게시"}/>
-   {draft&&<SaveFestival draft={draft}/>}
+   {draft&&<><SaveFestival draft={draft}/><p className="result-sharing-note">이미지 저장·공유는 내 영화제에 저장한 뒤, 공개 링크를 만들면 사용할 수 있어요.</p></>}
    <nav className="result-edit" aria-label="결과 재편집"><Link className="primary-action" href="/create/awards" onClick={()=>{if(draft)saveDraft({...draft,current_screen:'awards',current_question:5});}}>수상작 고치기 →</Link><Link className="text-action" href="/create/survey" onClick={()=>{if(draft)saveDraft({...draft,current_screen:'survey',current_question:0});}}>설문 고치기</Link></nav>
    <p className="result-local-note">이 브라우저의 로컬 초안으로 만든 미리보기입니다.<br/>{draft?.editing_festival_id?"서버 저장본과 공개본은 수정 내용을 저장·공유 갱신한 뒤 바뀝니다.":"서버에 저장하거나 공개하지 않았습니다."}</p>
   </>}
