@@ -31,3 +31,20 @@
 }
 /* Keep wax strokes below the glyphs, including the 360px headline. */
 .festival .crayon-underline::after{bottom:-14px;height:12px}
+/* The questionnaire is a document, with native radio semantics and a wax check. */
+.festival .survey-page{max-width:1000px;padding:24px 0 40px}
+.festival .survey-topline{font-size:13px}.festival .survey-topline .text-action{font-size:13px}
+.survey-document{display:grid;grid-template-columns:310px minmax(0,1fr);gap:64px;margin-top:32px}
+.survey-document-aside{border-right:1px solid var(--rule);padding-right:30px}.survey-document-aside .section-kicker{font-size:12px;margin:0;color:var(--wine)}
+.survey-document-aside h2{font-family:var(--serif);font-size:35px;line-height:1.6;margin:18px 0 22px}
+.survey-document-number{position:relative;width:fit-content;font-family:var(--serif);font-size:76px;color:var(--wine);line-height:1.5}.survey-document-number>.crayon{position:absolute;left:-20px;bottom:10px;width:140px;height:74px;transform:rotate(-9deg)}
+.survey-document-count{font-size:12px;color:var(--festival-muted);margin:24px 0 12px}.festival .survey-document .survey-progress{margin:12px 0 32px;height:3px}.survey-document .hand-note{margin-top:36px;font-size:25px}
+.festival .question-number{display:none}.festival .question-title{font-size:27px;line-height:1.8;letter-spacing:-.035em;margin:0 0 24px}
+.festival .survey-options{gap:0;border-top:1px solid var(--ink)}.festival .survey-option{position:relative;border:0;border-bottom:1px solid var(--rule);min-height:62px;padding:15px 10px 15px 3px;gap:16px;background:transparent}
+.festival .survey-option input{position:absolute;opacity:0;width:1px;height:1px}.option-order{font-size:12px;font-variant-numeric:tabular-nums;color:var(--festival-muted)}
+.festival .survey-option:has(input:checked){border:0;border-bottom:1px solid var(--rule);padding:15px 10px 15px 3px;color:var(--wine);background:#781f3008;font-weight:600}
+.festival .selected-note{width:29px;height:29px;margin-left:auto}.selected-note>.crayon{width:29px;height:29px}
+.festival .survey-option:has(input:focus-visible){outline:3px solid #315ca8;outline-offset:4px;z-index:1}.festival .survey-hint{font-size:13px;line-height:1.8}.festival .survey-actions{margin-top:24px}.festival .save-caption{font-size:12px}
+@media(max-width:700px){
+.festival .survey-page{padding-top:14px}.survey-document{display:block;margin-top:20px}.survey-document-aside{position:relative;border:0;padding:0}.survey-document-aside .section-kicker{font-size:11px}.survey-document-aside h2{font-size:20px;margin:6px 0 16px}.survey-document-aside h2 br{display:none}.survey-document-number{position:absolute;right:10px;top:17px;font-size:35px}.survey-document-number>.crayon{width:65px;height:40px;left:-10px;bottom:0}.survey-document-count{font-size:11px;margin:0}.festival .survey-document .survey-progress{margin:12px 0 26px}.survey-document .hand-note{display:none}.survey-document-body{border-top:3px double var(--wine);padding-top:20px}.festival .question-title{font-size:22px;line-height:1.8;margin-bottom:22px}.festival .survey-option,.festival .survey-option:has(input:checked){min-height:58px;padding:14px 5px 14px 3px;gap:14px;font-size:16px}.festival .survey-hint{font-size:12px}.festival .selected-note,.selected-note>.crayon{width:25px;height:25px}.festival .survey-actions .primary-action{min-height:54px}
+}
