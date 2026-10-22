@@ -12,3 +12,5 @@
 초기 Google Fonts 2,054,744-byte 파일에는 ①②③ 글리프가 없어 전체판 4,691,820-byte 파일로 교체했다. 전체판도 임의의 모든 유니코드/emoji 지원을 보장하지 않는다. 새 출력 문구의 문자 지원을 확인한다.
 
 글꼴은 JS 번들에 base64로 넣지 않고 Node runtime에서 파일로 읽는다. 실제 Vercel의 파일 추적/메모리/렌더 한도는 별도로 검증한다.
+
+D+E HTML typography: NanumMyeongjo-Bold.woff2 and NanumPenScript-Regular.woff2 are full Korean fonts compressed from the official google/fonts repository. OFL licenses are adjacent. They are separate from the existing G3 PNG font and do not alter its runtime.

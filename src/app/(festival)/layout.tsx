@@ -1,10 +1,11 @@
 import Link from "next/link";
 import "./festival.css";
+import "./de-design.css";
 export default function FestivalLayout({ children }: { children: React.ReactNode }) {
   return <div className="festival">
     <a className="skip-content" href="#main-content">본문으로 바로가기</a>
     <header className="festival-header">
-      <Link href="/" className="wordmark" aria-label="방국제 홈">방국제<span>방구석국제영화제</span></Link>
+      <Link href="/" className="wordmark" aria-label="방국제 홈">방국제<span>BANGUSEOK<br/>International Film Festival</span></Link>
       <Link href="/my" className="header-link">내 영화제 <span aria-hidden="true">↗</span></Link>
     </header>
     {children}

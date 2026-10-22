@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+const stage=process.argv[2]??'landing',base=process.env.DESIGN_BASE_URL??'http://127.0.0.1:3114',out='artifacts/design-de';
+assert.ok(['landing','survey','selection','result'].includes(stage));await mkdir(out,{recursive:true});
+const profile=await mkdtemp(join(tmpdir(),'banguseok-design-'));
+const chrome=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--no-first-run','--no-default-browser-check',`--user-data-dir=${profile}`,'--remote-debugging-port=0','about:blank'],{stdio:['ignore','ignore','pipe']});let socket,inspect;const checks=[],browserErrors=[];
+try{
+ const endpoint=await new Promise((resolve,reject)=>{let buffer='';const timer=setTimeout(()=>reject(Error('CHROME_TIMEOUT')),15000);chrome.stderr.on('data',chunk=>{buffer+=chunk;const m=buffer.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(m){clearTimeout(timer);resolve(m[1]);}});chrome.once('error',reject);});
+ socket=new WebSocket(endpoint);await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j;});let seq=0;const pending=new Map();socket.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')browserErrors.push(m.params.exceptionDetails.exception?.description?.split('\n')[0]??'runtime error');if(m.method==='Network.loadingFailed')browserErrors.push(m.params.errorText);if(m.id){const p=pending.get(m.id);pending.delete(m.id);if(m.error)p?.reject(Error('CDP_FAILED'));else p?.resolve(m.result);}};
+ function send(method,params={},sessionId){return new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params,sessionId}));setTimeout(()=>{if(pending.has(id)){pending.delete(id);reject(Error('CDP_TIMEOUT'));}},20000).unref();});}
+ const{targetId}=await send('Target.createTarget',{url:'about:blank'}),{sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});const cdp=(m,p={})=>send(m,p,sessionId);await cdp('Page.enable');await cdp('Runtime.enable');await cdp('Network.enable');
+ async function js(expression){const r=await cdp('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});assert.ok(!r.exceptionDetails,'BROWSER_EVALUATION');return r.result.value;}
+ async function wait(expression,ms=25000){const end=Date.now()+ms;while(Date.now()<end){try{if(await js(`Boolean(${expression})`))return;}catch{}await new Promise(r=>setTimeout(r,100));}throw Error('WAIT: '+expression);}
+ async function go(path){await cdp('Page.navigate',{url:base+path});await wait(`document.querySelector('main')`);await js(`document.fonts.ready.then(()=>true)`);}
+ async function click(selector){await wait(`document.querySelector(${JSON.stringify(selector)})&&!document.querySelector(${JSON.stringify(selector)}).disabled`);await js(`document.querySelector(${JSON.stringify(selector)}).click()`);}
+ async function shot(name,full=false){await js(`document.querySelector('nextjs-portal')?.style.setProperty('display','none');document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))`);const clip=full?(await cdp('Page.getLayoutMetrics')).cssContentSize:null;const{data}=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:full,...(clip?{clip:{x:0,y:0,width:clip.width,height:clip.height,scale:1}}:{})});await writeFile(`${out}/${name}.png`,Buffer.from(data,'base64'));}
+ async function viewport(width){await cdp('Emulation.setDeviceMetricsOverride',{width,height:width<700?800:900,deviceScaleFactor:1,mobile:width<700});await js('scrollTo(0,0)');}
+ inspect=()=>js(`({state:document.readyState,title:document.title,path:location.pathname,main:!!document.querySelector('main'),heading:document.querySelector('h1')?.textContent})`);
+ const pass=(name,detail={})=>checks.push({name,...detail});
+ await viewport(360);await go('/');await wait(`document.querySelector('.entry-actions .primary-action:not(:disabled)')`);
+ if(stage==='landing'){
+  for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);const bottom=await js(`document.querySelector('.entry-actions .primary-action').getBoundingClientRect().bottom`);if(width<700)assert.ok(bottom<800,'LANDING_CTA_FOLD');await shot(`landing-${width}`);await shot(`landing-${width}-full`,true);pass('landing-responsive',{width,ctaBottom:Math.round(bottom)});}
+  await click('.entry-actions .primary-action');await wait(`location.pathname==='/create/survey'&&document.querySelector('input[type=radio]')`);pass('landing-real-draft-route');
+ }else{
+  await click('.entry-actions .primary-action');await wait(`document.querySelector('input[type=radio]')`);
+  if(stage==='survey'){
+   await click('button[type=submit]');await wait(`document.querySelector('[role=alert]')`);pass('required-validation');
+   await click('.survey-option:nth-child(3) input');await click('button[type=submit]');await wait(`document.querySelector('.question-title').textContent.includes('친구에게')`);await click('.survey-option:nth-child(3) input');await cdp('Page.reload');await wait(`document.querySelector('.survey-option:nth-child(3) input')?.checked`);pass('question-answer-restore');
+   for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);await shot(`survey-${width}`);await shot(`survey-${width}-full`,true);pass('survey-responsive',{width});}
+   await js(`document.querySelector('input[type=radio]').focus()`);await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});assert.equal(await js(`document.activeElement.matches('input[type=radio]')`),true);pass('native-radio-keyboard');
+  }
+  while(await js(`location.pathname==='/create/survey'`)){const old=await js(`document.querySelector('input[type=radio]')?.name`);await click('.survey-option:nth-child(3) input');await click('button[type=submit]');await wait(`location.pathname!=='/create/survey'||document.querySelector('input[type=radio]')?.name!==${JSON.stringify(old)}`);}
+  await wait(`location.pathname==='/create/awards'&&document.querySelector('.category-list')`);pass('six-question-real-navigation');
+  if(stage==='selection'||stage==='result')for(const category of stage==='result'?['grand','lifetime','sorry']:['grand']){
+   await go('/create/awards/'+category);await wait(`document.querySelectorAll('.poster-card:not(:disabled)').length===6`,35000);await wait(`[...document.querySelectorAll('.poster-card img')].slice(0,2).every(i=>i.complete&&i.naturalWidth>0)`);
+   if(category==='grand')for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);const top=await js(`document.querySelector('.poster-card .movie-poster').getBoundingClientRect().top`);if(width<700)assert.ok(top<310,'POSTERS_TOO_LOW');await shot(`selection-${width}`);await shot(`selection-${width}-full`,true);pass('live-candidates-responsive',{width,firstPosterTop:Math.round(top)});}
+   await click('.poster-card:not(:disabled)');await wait(`document.querySelector('.selection-bar .primary-action:not(:disabled)')`);await cdp('Page.reload');await wait(`document.querySelector('.selection-bar .primary-action:not(:disabled)')`);pass('pending-restore-'+category);await click('.selection-bar .primary-action');await wait(`location.pathname!=='/create/awards/${category}'`);pass('confirm-transition-'+category);
+  }
+  if(stage==='result'){
+   await go('/create/review');await click('a[href="/create/result"]');await wait(`document.querySelectorAll('.result-film').length===3`);await js(`document.querySelectorAll('.movie-poster img').forEach(i=>i.loading='eager')`);await wait(`[...document.querySelectorAll('.result-film img')].every(i=>i.complete&&i.naturalWidth>0)`);
+   for(const width of [360,390,1280]){await viewport(width);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);await shot(`result-${width}`);await shot(`result-${width}-full`,true);pass('real-result-three-awards',{width});}
+   await cdp('Page.reload');await wait(`document.querySelectorAll('.result-film').length===3`);pass('result-restore');await click('.result-edit a[href="/create/survey"]');await wait(`document.querySelector('input[type=radio]')`);pass('result-reedit');
+  }
+ }
+ await writeFile(`${out}/${stage}-checks.json`,JSON.stringify({stage,scope:'Actual React / isolated Chrome / local draft / live TMDB; no DB writes',checks},null,2));console.log(JSON.stringify({stage,status:'PASS',groups:checks.length,checks}));
+}catch(e){console.log(JSON.stringify({stage,status:'FAIL',reason:e.message,completed:checks,diagnostic:await inspect?.(),browserErrors}));process.exitCode=1;}
+finally{socket?.close();chrome.kill();await new Promise(r=>setTimeout(r,300));await rm(profile,{recursive:true,force:true});}
