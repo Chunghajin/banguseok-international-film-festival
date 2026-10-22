@@ -1,3 +1,57 @@
+## 2026-10-22 — M5-B v2 격리 Preview·읽기 전용 preflight PASS
+
+- M5 전용 스냅샷125개 업로드, READY Preview `dpl_GgBbDBMSv5YRCNMG3UcsfcMp5Y9a` 배포 후 고정 alias 이동. 이전 A57 배포 보존·Preview alias 전용 롤백 명령 기록.
+- 실제 원격 probeVersion2·v2 HTML·Origin/Sitekey/fingerprint/비밀 구성 일치. 무인증302·작업자 미인증404·API/공개503·외부 Origin403 확인. 증명 행 불변·해당 Preview0개, 임시 자동화 자격 폐기 완료.
+- 증명·계정·콘텐츠·challenge 미실행. Production/환경 설정·Git 연결·Stitch·M6 소스 불변. 최종 통합 후 전체 E2E 별도 수행 필요. 상세 docs/M5_B_PREVIEW.md.
+
+## 2026-10-22 — M5-B 입력 사전 검사·CAPTCHA 단계 진단 안정화
+
+- 정상 저장/수정 fixture를 원격 요청 전 실제 제품 입력 검증에 통과시키고 닉네임11/12/13자·유니코드·본문/필수 필드 경계 테스트 추가. 증명 직전 구성과 입력 재확인, 저장 전 A/B 인증 읽기 확인.
+- 단계별 요청 시작/HTTP 응답/전송 실패와 위젯 v2 상태 진단 추가. 가입 토큰은 전송 전 소비, 실패 후 재사용 차단, 의도적 replay는1회만. raw 토큰/키/본문/식별자는 로그에 넣지 않음.
+- 첫 실패13자 초과는 확정. 두 번째는 challenge 대기~fresh 응답 전으로만 확인되며 구체 원인은 로그 부족으로 미확정. generic captcha_failed 원인은 추정 후보로 구분.
+- 전체122/122·타입·lint·build 통과. 실제 증명/계정/콘텐츠 생성·배포 없음. 전체 E2E 재개 전 보호된 Preview에 v2 반영 및 preflight 필요. Stitch·M6/PNG·Production 정책 변경 없음.
+
+## 2026-10-22 — M5-B 실제 E2E BLOCKED·철회/정리 확인
+
+- 승인된 실제 Preview challenge·invalid/fresh/replay 제공자 검증과 A/B 세션 생성/재사용 거부 통과. Preview 증명 등록으로 세션503→428, 저장 검사 실패 후 실행 소유 행 철회로503 복귀 확인.
+- 검사기 닉네임13자가 제품12자 제한에 걸려 첫 저장400. 로컬 fixture를 수정하고 제품 nickname 검증으로 사전 확인. 재시도는 실제 challenge/제공자 단계에서 실패해 새 증명 없이 중단; 뒤따른 원격 요청 장애 후 복구 감사 완료.
+- 임시 계정3개 정리·영화제 생성0개. 최종 Preview 증명0·임시 자격0·실행 이후 익명 계정/테스트 영화제 잔존0 확인. 저장/공유 기능은 미완료이며 M5-B PASS 아님. 안전 진단 보완, 로컬9/9·lint 통과.
+- 최종 Stitch/M6 통합 시 중간 증명을 자동 재사용하지 않고 최종 빌드에서 재검증하도록 문서화. Production/보안 정책/외부 작업 파일 변경 없음.
+
+## 2026-10-22 — M5-B 격리 Preview 배포·원격 preflight 통과
+
+- main/HEAD 기반 임시 스냅샷에 M5 파일만 반영, Stitch·M6 변경과 비밀 파일 제외. 업로드122개·비밀값 일치0개 확인 후 Preview READY 배포 `dpl_A57C68rJLLDFukMq3p3Tbs2Hzhkm` 생성, 기존 고정 alias 이동.
+- 실제 URL https://banguseok-film-festival-i0m7jaril-mikechung0918.vercel.app. 원격 origin/Sitekey/fingerprint/credential 구성 일치, 인증 HTML200·작업자 인증 없는404·무인증302·기존 API/공개 읽기503 확인. 임시 인증 자격 폐기 완료.
+- 증명 전후 불변·정확한 Preview 증명0개. 사용자/콘텐츠 테스트·증명 등록/철회·Production·GitHub 설정 변경 없음. alias 롤백 명령과 실행별 수동 철회 도구/명령 준비, 관련 M5 테스트6/6·lint 통과. 상세 docs/M5_B_PREVIEW.md.
+
+## 2026-10-22 — M5-B Preview 증명 안전 실행 절차 구현
+
+- Preview 전용 작업자 인증 검사 화면으로 실제 hostname 위젯을 증명 전에 표시. 원격 challenge로 fingerprint·Sitekey·빌드/런타임 키·Preview credential 구성을 비교하며 제품 API503은 유지한다.
+- `verify:m5:preview`의 읽기 전용 preflight/증명 없는 provider/명시 승인 activation 모드 추가. 새 Preview 증명만 INSERT하고 후속 HTTPS·데이터 정리 실패 시 실행 소유 행만 자동 철회. 기존 로컬 검증 도구의 일반 증명 등록 경로 제거.
+- Production/기존 증명·Stitch·공유 PNG 파일 변경 없음. 실제 증명 등록·외부 가입·새 Preview 배포는 미실행. DB 장애·프로세스 강제 종료 시 철회 한계와 수동 복구 범위를 M5_B_PREVIEW.md에 명시.
+- 전체113/113·lint·typecheck·production build 통과, 브라우저 산출물24개에서 현재 서버 비밀값 미검출. 포트 제한 실패는 허용 상태에서 재검증했고 생성된 Turbopack 오류 캐시만 정리.
+
+## 2026-10-22 — M5-B 고정 Preview·실환경 차단 확인
+
+- Preview 전용 alias `banguseok-film-festival-preview-mikechung0918.vercel.app` 설정, APP_ALLOWED_ORIGINS를 Preview에만 추가. 기존 원격 소스 재배포 READY 후 alias 이동, 로컬 Stitch 파일 업로드·수정 없음.
+- Authentication 유지, 임시 메모리 접근 자격으로 API/공개 읽기503·다른 Origin403·개발 경로404 확인. 자격 폐기 후 비로그인302 및 최종 bypass 자격0개 확인.
+- Production 도메인/기존 CANCELED target 유지. DB·RLS·CAPTCHA·운영 증명·Git 연결 변경 없음. hCaptcha 등록값과 증명 절차·503/위젯 순서 문제·등록 후 실패의 자동 철회 부재를 docs/M5_B_PREVIEW.md에 기록. 기능 검증과 증명 등록은 미완료.
+
+## 2026-10-22 — M5-B 보호된 Preview READY
+
+- 공식 Environments의 canceled-first 규칙 확인, 첫 CANCELED 기록을 보존한 채 --target=preview 재시도. 실제 preview→READY, 원격 빌드 성공.
+- URL: https://banguseok-film-festival-fnacr47fm-mikechung0918.vercel.app (배포별 URL, Preview alias0개). 비로그인 /·영화API·세션API는302 Vercel 인증 차단, 앱 콘텐츠 없음.
+- 첫 기록 CANCELED·Production READY0·Authentication 유지 확인. DB·CAPTCHA·Production 변수·운영 증명·APP_ALLOWED_ORIGINS·보안 코드 변경 없음. 공개 도메인 연결·승격·Git 자동 배포 없음.
+- 내부 앱503은 플랫폼 인증 뒤라 직접 원격 관측하지 않았다. 고정 hostname·hCaptcha/origin 정합성·fingerprint 증명과 위젯 검증 순서는 다음 과제. 상세 docs/M5_B_PREVIEW.md.
+
+## 2026-10-22 — M5-B 첫 CLI Preview 시도 취소·차단
+
+- mikechung0918 팀의 프로젝트·Node24·Preview6개 변수·Vercel Authentication 보호 확인. .vercelignore 추가 후 dry run132개, .env.local/artifacts/캐시/의존성 제외와 비밀값 미포함 확인.
+- --environment preview 명시 배포가 서버에서 production으로 분류돼 즉시 취소했다. CANCELED·aliasAssigned=false 확인. 취소된 URL은 비로그인302 Vercel 인증, 미배정 alias404, 앱 콘텐츠 없음.
+- 성공한 Preview 없음. 취소된 production 레코드와 프로젝트 target 참조는 남아 있으므로 Production 상태 불변이라고 주장하지 않는다. 추가 배포·승격·공개 도메인 배정·Git 자동 연결 없음.
+- 앱503·RLS·소유권·요청 제한 유지, Supabase/운영 증명/Production 환경 변수 변경 없음. hCaptcha·APP_ALLOWED_ORIGINS는 실제 Preview 보장 경로 확인 전 보류. 상세 docs/M5_B_PREVIEW.md.
+- 로컬 변경은 .vercelignore와 문서뿐이며 commit/push하지 않았다. 앱 테스트·원격 런타임 검증은 미실행.
+
 ## 2026-10-21 — hCaptcha 사용자 실검증 통과·M5-B 사전 점검
 
 - 사용자 실행 보고: hcaptcha REPLAY_REJECTED, 첫 가입200·동일 원본 replay400/captcha_failed, 독립 클라이언트, 신규 계정1개 정리 성공, release_activated=false. 이번 에이전트가 재실행한 결과와 구분한다.

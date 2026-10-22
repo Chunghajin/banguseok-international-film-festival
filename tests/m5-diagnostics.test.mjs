@@ -8,6 +8,7 @@ test('CAPTCHA diagnostics distinguish rejection, rate limits, network and disabl
 test('unrecognized diagnostics never expose upstream messages, keys or arbitrary error codes',()=>{
  assert.equal(authDiagnostic(Error('CAPTCHA_REPLAY_ACCEPTED')).reason,'CAPTCHA_REPLAY_ACCEPTED');
  assert.equal(authDiagnostic(Error('CAPTCHA_INPUT_TIMEOUT')).reason,'LOCAL_CAPTCHA_INPUT_UNAVAILABLE');
+ for(const code of ['PREVIEW_WIDGET_TIMEOUT','PREVIEW_BROWSER_FAILED','CDP_COMMAND_FAILED','OPERATOR_INTERRUPTED'])assert.deepEqual(authDiagnostic(Error(code)),{http_status:null,safe_code:code,reason:'PREVIEW_WIDGET_UNAVAILABLE'});
  for(const error of [new G1Error(400,'private-token-like-value'),Error('private session or provider details')]){const d=authDiagnostic(error);assert.equal(d.safe_code,'UNRECOGNIZED');assert.ok(!JSON.stringify(d).includes('private'));assert.notEqual(d.reason,'CAPTCHA_REJECTED');}
 });
 

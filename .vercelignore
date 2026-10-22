@@ -1,0 +1,13 @@
+.vercel
+.git
+.env*
+!.env.example
+artifacts
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+*.log
+*.har
+.DS_Store
