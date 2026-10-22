@@ -1,6 +1,33 @@
-# 출시 후보 v2 — 통합 PASS / 전체 UI 검증 게이트 BLOCKED
+# 출시 후보 v2 — 통합·공유 브라우저 회귀 PASS
 
 2026-10-23. 새 브랜치 `feature/release-candidate-v2`, worktree `/private/tmp/banguseok-release-candidate-v2`.
+
+## 공유 품질 게이트 후속 검증 — 2026-10-23
+
+**로컬 공유 브라우저 회귀 PASS, Preview 배포 준비 PASS.** 제품 결함은 발견되지 않아 제품 소스는 수정하지 않았다. 변경은 M6 검사 도구와 이 기록뿐이다. `38e0bae`의 미완료 항목은 화면이 표시되는 별도 프로필 Chrome으로 재실행해 해소했다. 기존 macOS headless 환경에서는 캡처/입력 정지가 있었고, headed Chrome에서는 전체 절차가 완료됐다. headless 정지의 내부 원인까지 확정하지 않는다.
+
+| 실제 컴포넌트 UI 검사 | 결과 |
+| --- | --- |
+| PNG 생성 → Chrome 파일 다운로드 | PASS, 실제 PNG blob decode·다운로드 파일 1080×1920 확인 |
+| 공유 성공 | 모킹된 share Promise resolve 후 성공 메시지·PNG File 전달 확인 |
+| AbortError 취소 | 취소 메시지·다운로드 유지·실제 재다운로드 PASS |
+| NotAllowedError / 일반 Error | 실패 안내·busy 해제·실제 재다운로드 PASS |
+| navigator.share 없음 / canShare=false / canShare 예외 | 공유 버튼 숨김·정상 PNG decode·각 실제 다운로드 PASS |
+| 360·390·1280px | 공유 버튼 포함 및 다운로드 대체 상태의 44px 터치 영역·화면 경계·버튼 상호 겹침·결과지와 분리 검사 PASS; 스크린샷 확인 |
+| 공개 취소 후 기존 탭 재생성 | PNG404·오래된 다운로드 링크 제거; 이미 받은 HTML은 남음 |
+| 공개 취소·삭제 후 새 요청 | production runtime HTML/PNG404·no-store, HTML 수상작 행 없음; 기존 격리 SQL의 공개 취소/삭제 cascade 검사 재실행 |
+
+`npm run verify:m6`는 실제 Next HTTP/Chrome UI 14그룹을 검사한다. Supabase 응답과 Web Share API만 로컬 fixture/mock이며 실제 원격 계정·콘텐츠·증명은 생성하지 않는다. 관리 화면과 공개 화면이 같은 `ShareImageActions`를 사용하는 연결도 확인했다. 공개 결과 화면에서 상호작용을 실행했으며 실제 소유자 관리 화면의 원격 인증 흐름을 새로 실행한 것은 아니다.
+
+전체 자동 테스트134/134(skip0), lint, typecheck, 기본 Turbopack production build 및 `verify:m6:build` 통과. 빌드는 실제 자격 없이 fixture 구성으로 실행했고 배포용 빌드가 아니다. 첫 빌드 시도는 필수 fixture service-role 설정 누락으로 실패했으며, fixture 설정을 완성한 재실행에서 통과했다. 보안 정책/제품 코드 변경은 없었다.
+
+검증 산출물은 Git 제외 `artifacts/m6/{report,production-local,bundle}.json`, `downloads/banguseok-festival.png`, `artifacts/integration/{public-six-*-full,share-actions-*}.png`다. 새 실행마다 다운로드 파일을 지우고 실제 생성된 파일의 크기를 검사해 이전 파일로 통과하지 않도록 했다.
+
+**실기기 확인은 별도:** Web Share 성공·취소·권한 거절은 API 모킹 결과다. 실제 iOS Safari/Android의 HTTPS native 공유 시트, 수신 앱 전달 및 파일 저장은 확인하지 않았다. 기존 Preview 증명을 재사용하지 않으며, 새 Preview 배포·사전 검사와 승인된 실제 E2E가 필요하다. 이번에는 배포/증명/원격 DB 쓰기/다른 브랜치 수정/push를 하지 않았다.
+
+## 이전 실행 기록 (38e0bae 시점)
+
+아래 BLOCKED 설명은 후속 검증 전 기록이다. 현재 판정은 위 후속 검증을 따른다.
 
 ## 통합과 원본 보존
 
