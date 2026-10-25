@@ -1,16 +1,34 @@
-# 방국제
+# 방구석국제영화제 (방국제)
 
-BANGUSEOK International Film Festival. M1 설문·초안, M2 수상작 선정, M3 공식 HTML 결과 로컬 미리보기를 구현했습니다. [M1](docs/M1.md) · [M2](docs/M2.md) · [M3 규칙·화면·검증](docs/M3.md). M4에서 실제 Supabase 저장·읽기 전용 공개 URL·소유자 관리까지 연결했습니다. [M4 동선·보안·실검증·배포 차단](docs/M4.md). PNG 통합은 아직 없습니다.
+**BANGUSEOK International Film Festival** — 지금까지 본 영화에 직접 상을 주고, 나만의 영화제 결과지를 저장·공유하는 웹 앱입니다. 서비스 문구는 “심사위원 만장일치. 심사위원 1명.”입니다.
 
-M1·M2 화면을 모바일 중심으로 다듬었습니다. [UI 개선 전후·측정·검증](docs/UI_REFINEMENT.md)에 360×800/1280×900 증거를 정리했습니다.
+- 서비스: <https://banguseok-film-festival.vercel.app/>
+- 최종 제출 소스 브랜치: `feature/production-release-final` (이 브랜치)
+- 기본 브랜치 `main`은 개발 초기(cf51cf0) 버전입니다. 최종 코드는 이 브랜치를 기준으로 봅니다.
+- 이 저장소는 “AI와 함께 만들기” 과제 2 제출물이며 AI Coding Agent(Codex)와 협업해 개발했습니다.
 
-3개 부문 확정 후 발표 전 확인에서 ‘공식 결과지 미리보기’를 열 수 있습니다. URL은 `/create/result`이며 같은 브라우저의 초안을 사용합니다. `npm run verify:m3:browser`로 결과·재편집·직접 URL을 Chrome에서 검사합니다. Q01~Q12/T01~T18은 `npm test`에 포함됩니다.
+## 주요 기능
 
-G3 한글·실제 포스터 PNG는 로컬 기술 검증까지 완료했습니다. 실제 Vercel runtime과 휴대전화 검증은 남아 있습니다. [G3 실행·증거·제한](docs/G3_PNG.md)을 확인합니다.
+1. 설문 6문항(건너뛰기 가능)과 6개 시상 부문에서 수상작 선택. 후보 66편 중 6편씩 반복 추천하며 TMDB 검색으로 직접 고를 수도 있습니다.
+2. 서로 다른 부문 3개 이상이면 결과지 생성. 고정 규칙과 검토한 문구로 수상작과 집행위원장 특별상(7유형·21변형)을 정합니다. 서비스 실행 중 생성형 AI는 사용하지 않습니다.
+3. 결과를 Supabase에 비공개로 저장(`/my`, `/my/{id}`)하고 수정·삭제할 수 있습니다. 저장본에서 공개에 동의하면 읽기 전용 링크(`/f/{token}`)가 만들어지며, 공개는 언제든 중단할 수 있습니다.
+4. 공개된 결과로 1080×1920 PNG 이미지를 만들어 다운로드하거나 기기 공유로 보낼 수 있습니다.
+5. 별도 회원가입 없이 Supabase 익명 인증과 hCaptcha, 요청 제한으로 저장·수정 권한을 보호합니다.
 
-M4는 `/create/result`에서 비공개 저장 후 `/my/{id}`에서 공개 동의·URL 복사·재편집·삭제를 제공합니다. 내 목록은 `/my`, 공개 결과는 `/f/{token}`입니다. 운영 쓰기 API는 요청 보호 검증 전 503을 유지합니다. 실제 저장에는 G1 안내의 Supabase 설정과 TMDB 토큰이 필요합니다.
+## 기술 스택
 
-M5-A 운영 요청 보호 코드를 준비했습니다. **실제 새 RPC 미준비·Supabase CAPTCHA 미강제 확인으로 배포 차단을 유지합니다.** 설정/SQL 적용/실검증 순서는 [M5-A](docs/M5_A.md)를 따릅니다. Vercel 배포는 수행하지 않았습니다.
+Next.js 16(App Router) · React 19 · TypeScript · Supabase(PostgreSQL, 익명 인증, RLS) · TMDB API · hCaptcha · Vercel · Next `ImageResponse`(PNG)
+
+영화 정보와 포스터는 TMDB에서 가져오며 화면 푸터에 출처와 비보증 문구를 표시합니다. 이 서비스는 TMDB가 인증하거나 보증한 서비스가 아닙니다.
+
+## 배포 및 검증 상태
+
+- 운영 코드의 마지막 검증 커밋은 `94aa185`이고 결과 규칙은 `result-v1.1`입니다. `94aa185` 이후 커밋은 문서만 변경합니다.
+- `c63d1d1`에서 실제 Production E2E(일반 Chrome CAPTCHA, 저장·수정·공개·PNG·공개 취소·삭제, 타 계정 차단, 요청 제한 429)를 2026-10-25에 실행해 통과했습니다. E2E 중 만든 테스트 자료는 정리했습니다.
+- `94aa185`는 TMDB 출처 표시를 추가한 최종 운영 코드입니다. 자동 테스트 143개, lint, 타입 검사, production build가 통과했고 주요 화면과 보호 상태를 읽기 전용으로 확인했습니다. 이 커밋에서 전체 E2E를 다시 실행하지는 않았습니다.
+- 특별상 문구 v1.2와 해당 DB migration은 원격에 적용하지 않았고 출시에서 제외했습니다.
+- 실제 iOS·Android 기기의 공유 시트, 장기 부하, 전체 접근성 감사는 검증하지 않았습니다.
+- `docs/`의 문서는 개발 단계별 기록이며 일부는 당시 상태(예: 배포 전·PNG 미구현·production 차단)를 서술합니다. 최종 상태는 이 README를 기준으로 합니다.
 
 ## 로컬 실행
 
@@ -21,11 +39,7 @@ npm ci
 npm run dev
 ```
 
-`http://localhost:3000`에서 랜딩을 확인합니다. 설문은 `/create/survey`, 부문 목록은 `/create/awards`, 후보 선정은 `/create/awards/grand` 등이며 3부문부터 `/create/review`에 진입할 수 있습니다. M1은 환경변수 없이 실행됩니다. M2 실제 영화 조회에는 서버 전용 `TMDB_READ_ACCESS_TOKEN`이 필요합니다.
-
-개발 서버 실행 후 `npm run verify:m1`, `npm run verify:m2:http`, `npm run verify:m2:browser`로 검사할 수 있습니다. 브라우저 스크립트는 이 Mac의 실제 Chrome을 임시 프로필/headless 360×800으로 실행합니다. `verify:m2:catalog`는 편집 후보 66개 고유 ID를 실제 TMDB 상세로 확인합니다.
-
-M2의 별도 `/api/catalog/movies`는 로컬 요청 검증·60회/분 단일 프로세스 제한을 적용합니다. **production에서는 관리형 보호 미확인으로 503 차단**하므로 공개 배포 준비 완료가 아닙니다. 운영 조건은 M2 문서를 확인합니다. 기존 G2 개발 API는 그대로 production 404입니다.
+`http://localhost:3000`에서 랜딩을 확인합니다. 설문은 `/create/survey`, 시상 부문은 `/create/awards`, 결과 확인은 `/create/review`와 `/create/result`입니다. 설문은 환경 변수 없이 실행되며, 실제 영화 조회에는 서버 전용 `TMDB_READ_ACCESS_TOKEN`이, 저장·공개·PNG에는 Supabase와 hCaptcha 설정이 필요합니다. `.env.example`을 `.env.local`로 복사해 값을 채웁니다. `.env.local`은 Git에서 제외되며 키·토큰은 코드나 로그에 남기지 않습니다. `SUPABASE_SERVICE_ROLE_KEY`와 `TMDB_READ_ACCESS_TOKEN`은 서버 전용이므로 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다.
 
 ```sh
 npm run lint
@@ -36,29 +50,19 @@ npm run build
 
 ## 구조
 
-- `src/app/(festival)/`: 랜딩·설문·시상 진입점과 해당 화면 전용 스타일
-- `src/lib/survey*.ts`: v1.1 설문 데이터·로컬 초안·클라이언트 상태
-- `src/lib/award*.ts`, `src/components/movie-*.tsx`: 명세의 후보 카탈로그·층화 셔플·선정/검색 UX
-- `src/lib/product-movies.ts`, `/api/catalog/movies`: M2 전용 영화 프록시와 요청 보호 게이트
-- `tests/`: Node.js 테스트 러너, 격리된 PostgreSQL(PGlite) SQL/RLS 검사, 검증 클라이언트 검사
-- `supabase/migrations/`: 원본/공개 테이블, RLS·권한, 서버 전용 RPC
-- `scripts/g1/`: Node 전용 익명 A/B 세션과 실제 Supabase CRUD·권한 검증 도구
-- `src/lib/tmdb.ts`, `scripts/g2/`: 서버 전용 TMDB 검색·상세 모듈과 실제 검증/토큰 노출 검사
-- `/dev/tmdb`: 개발 모드에서만 열리는 영화 검색·상세·포스터 검증 화면
-- `/dev/png`, `src/components/g3-card.tsx`, `scripts/g3/`: HTML과 분리된 한글/포스터 PNG 기술 검증, 실제 파일은 `artifacts/g3/`
-- `docs/`: v1.1 제품·화면 명세, 개발 순서, 변경 이력, 기술 검증 준비
-- `.env.example`: 다음 단계에서 사용할 환경변수 이름만 기재
+- `src/app/(festival)/`: 랜딩·설문·시상·결과·내 영화제 화면과 스타일
+- `src/app/(public)/f/[token]/`: 읽기 전용 공개 결과
+- `src/app/api/`: 영화 검색·상세·후보 카탈로그, 영화제 CRUD·공개, 세션, 공유 PNG 경로. `src/app/api/dev/`와 `src/app/dev/`는 개발·진단용이며 production에서는 404입니다.
+- `src/lib/`: 설문·후보 추천·결과 규칙·TMDB·Supabase 접근·요청 보호
+- `supabase/migrations/`: 저장본·공개 스냅샷 테이블, RLS와 권한, 서버 전용 RPC
+- `tests/`: Node.js 테스트 러너와 격리된 PostgreSQL(PGlite) SQL·RLS 검사
+- `scripts/`: 실제 Supabase·TMDB·브라우저 검증 도구
+- `docs/`: 제품 명세(`PRD.md`), 화면 문구, 단계별 구현·검증 기록, 문제 해결 기록(`problem-log.md`)
 
-## 다음 단계
+## 데이터와 권한
 
-기준 문서는 `docs/PRD.md`, `docs/SCREEN_CONTENT.md`, `docs/CODEX_STEPS.md`, `docs/CHANGELOG.md`입니다. 기술 검증 준비와 미실행 항목은 [TECH_VALIDATION.md](docs/TECH_VALIDATION.md)를 확인합니다.
+저장본에는 설문·선정작·생성 결과·버전·revision이 들어 있고, 공개 시에는 허용한 필드만 별도 스냅샷으로 저장합니다. 클라이언트에는 쓰기 권한이 없으며 쓰기는 서버가 소유권과 입력을 검증한 뒤 서비스 역할 RPC로만 수행합니다. 오래된 revision으로 수정하면 충돌(409)을 반환합니다.
 
-G1 SQL 적용·키 설정·실제 검증 순서는 [G1_SUPABASE.md](docs/G1_SUPABASE.md)를 따릅니다. `npm test`는 실제 Supabase 검증이 아닙니다. 전용 테스트 프로젝트 설정 후 `G1_ALLOW_TEST_WRITES=yes npm run verify:g1`를 실행해야 실제 Auth/권한 실패 사례를 확인할 수 있습니다. 검증 도구는 자체 생성한 합성 데이터와 익명 사용자만 정리합니다.
+## 문서
 
-G2 실행은 [G2_TMDB.md](docs/G2_TMDB.md)를 따릅니다. `.env.local`의 서버 전용 `TMDB_READ_ACCESS_TOKEN` 설정 후 `npm run verify:g2`로 실제 검색·상세를 확인합니다. `npm run dev -- --hostname 127.0.0.1`로 로컬 검증 화면을 열 수 있습니다. production에서는 요청 보호 확인 전까지 화면과 영화 API 모두 404입니다.
-
-실제 연동 시 `.env.example`을 `.env.local`로 복사한 후 로컬에서 값을 입력합니다. `.env.local`은 Git 제외 대상입니다. `SUPABASE_SERVICE_ROLE_KEY`와 `TMDB_READ_ACCESS_TOKEN`은 서버 전용이며 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 키·쿠키·세션·사용자 데이터를 코드나 로그에 남기지 않습니다.
-
-현재 폴더는 Git 저장소가 아니며 원격 저장소·배포는 구성하지 않았습니다.
-
-환경 구성 참고: [Next.js 공식 설치 문서](https://nextjs.org/docs/app/getting-started/installation), [Tailwind CSS 공식 Next.js 가이드](https://tailwindcss.com/docs/installation/framework-guides/nextjs).
+기준 문서는 `docs/PRD.md`, `docs/SCREEN_CONTENT.md`, `docs/CODEX_STEPS.md`, `docs/CHANGELOG.md`입니다. 설정·검증 절차는 `docs/G1_SUPABASE.md`, `docs/G2_TMDB.md`, `docs/M5_HCAPTCHA.md`, `docs/RELEASE_INTEGRATION.md`를 참고합니다.

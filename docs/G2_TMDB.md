@@ -94,4 +94,4 @@ Untitled는 실제 `/movie/{id}/translations`의 한국어 title 부재를 추�
 - 공식 요구: https://developer.themoviedb.org/docs/faq 및 https://www.themoviedb.org/about/logos-attribution
 - 승인 자산: https://www.themoviedb.org/assets/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg
 - 원본 그대로 저장한 파일: `public/tmdb/blue-short.svg` · SHA-256 `8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c`
-- `RELEASE_INTEGRATION.md`의 개인 절대 경로는 현재 문서에서 상대 경로로 교체했다. 과거 Git 이력은 보존되며 저장소는 비공개로 유지한다.
+- `RELEASE_INTEGRATION.md`의 개인 절대 경로는 현재 문서에서 상대 경로로 교체했다. 과거 Git 이력은 보존된다. 작성 당시 저장소는 비공개였으며 이후 공개로 전환했다.
