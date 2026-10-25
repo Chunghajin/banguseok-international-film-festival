@@ -1,6 +1,6 @@
 # 출시 후보 통합 — M5-B + M6 + D/E
 
-통합 브랜치 `feature/release-integration`, 기존 main(cf51cf0)을 기준으로 새 worktree에서 작업했다. 위치: `/Users/chunghajin/Desktop/Banguseok-preservation-20261022-200249/worktrees/release-integration`.
+통합 브랜치 `feature/release-integration`, 기존 main(cf51cf0)을 기준으로 새 worktree에서 작업했다. 위치: `../worktrees/release-integration`.
 
 ## 보존과 병합
 

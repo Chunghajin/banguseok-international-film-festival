@@ -82,3 +82,8 @@
 .festival .share-image-actions [role=status]{color:var(--wine);min-height:0}.festival .share-management h2,.festival .owner-actions h2{font-family:var(--serif);font-weight:700;line-height:1.7}
 @media(max-width:700px){.festival .share-image-actions h2{font-size:23px}.festival .share-image-actions{gap:14px}.festival .share-image-actions>.primary-action{max-width:none}.share-image-buttons{gap:12px 18px}.festival .download-image{flex:1 1 45%;font-size:14px;padding:12px}.share-image-buttons .text-action{font-size:13px}}
 .festival .result-sharing-note{font-size:13px;line-height:1.9;color:var(--festival-muted);margin:0 0 24px}
+
+.festival .tmdb-credits{flex-basis:100%;display:grid;gap:8px;margin-top:12px;max-width:640px}
+.festival .tmdb-credits h2{font:inherit;font-weight:700;margin:0}
+.festival .tmdb-credits p{margin:0}
+.festival .tmdb-credits a{width:120px}

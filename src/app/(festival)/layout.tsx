@@ -1,3 +1,4 @@
+import TmdbCredits from '@/components/tmdb-credits';
 import Link from "next/link";
 import "./festival.css";
 import "./de-design.css";
@@ -9,6 +10,6 @@ export default function FestivalLayout({ children }: { children: React.ReactNode
       <Link href="/my" className="header-link">내 영화제 <span aria-hidden="true">↗</span></Link>
     </header>
     {children}
-    <footer className="festival-footer"><span>BANGUSEOK</span><span>심사위원 만장일치. 심사위원 1명.</span></footer>
+    <footer className="festival-footer"><span>BANGUSEOK</span><span>심사위원 만장일치. 심사위원 1명.</span><TmdbCredits /></footer>
   </div>;
 }

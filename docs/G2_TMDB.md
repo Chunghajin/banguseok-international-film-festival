@@ -86,3 +86,12 @@ Untitled는 실제 `/movie/{id}/translations`의 한국어 title 부재를 추�
 실제 TMDB 429/장애/timeout, 후보 풀 72슬롯 전체, 학교 공용 IP/플랜 요청 보호·비용 한도, 실기기 IME·모바일·접근성 전체 회귀, 자동화된 응답 순서 경합 시험, 브라우저 이미지 로드 실패 이벤트, TMDB 승인 로고·출처의 최종 제품 배치는 아직 미검증이다. 캐시와 production API 공개도 아직 진행하지 않았다. G3 PNG와 수상 UX는 구현하지 않았다.
 
 공식 근거: [영화 검색](https://developer.themoviedb.org/reference/search-movie), [상세](https://developer.themoviedb.org/reference/movie-details), [이미지 URL](https://developer.themoviedb.org/docs/image-basics), [오류 코드](https://developer.themoviedb.org/docs/errors).
+
+## 2026-10-25 최종 HTML 출처 표시
+
+일반 화면과 공개 결과의 공통 푸터에 출처 및 크레딧을 표시한다. 승인 로고를 원본 색상·비율로 사용하고 공식 비보증 문구를 그대로 표시한다. 공유 PNG의 기존 문구와 결과 데이터는 변경하지 않는다.
+
+- 공식 요구: https://developer.themoviedb.org/docs/faq 및 https://www.themoviedb.org/about/logos-attribution
+- 승인 자산: https://www.themoviedb.org/assets/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg
+- 원본 그대로 저장한 파일: `public/tmdb/blue-short.svg` · SHA-256 `8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c`
+- `RELEASE_INTEGRATION.md`의 개인 절대 경로는 현재 문서에서 상대 경로로 교체했다. 과거 Git 이력은 보존되며 저장소는 비공개로 유지한다.
